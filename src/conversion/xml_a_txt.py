@@ -12,10 +12,9 @@ import logging
 import re
 
 from xml.etree import ElementTree as ET
+import pathlib
 
 import textwrap3
-
-import configuracion_auxiliar as conf
 
 logger = logging.getLogger('xml_a_txt')
 logging.basicConfig()
@@ -28,17 +27,27 @@ logger.addHandler(ch)
 MAX_CHARS_PER_LINE = 500
 
 def from_xml_to_text(input_filepath, output_filepath, tipo_boletin, doccano=False):
-
-	if tipo_boletin not in ['BOE', 'BOA', 'BOPH', 'BOPZ', 'BOPT']:
-		print('Warning: El tipo de boletín indicado no es uno de los predefinidos.')
-
-	aragon = tipo_boletin in ['BOA', 'BOPH', 'BOPZ', 'BOPT']
-
-	tipo_codificacion = 'utf-8'		# por defecto
-	if aragon:
-		tipo_codificacion = 'ISO-8859-1'
-
+	# Recuperar fichero de configuración
+	ruta_fichero_conf = pathlib.Path('../ficheros_configuracion/' + tipo_boletin + '_conf.xml')
 	try:
+		with open(ruta_fichero_conf, 'rb') as file:
+			tree_fc = ET.parse(file)
+			root_fc = tree_fc.getroot()
+	except:
+		msg = (
+			"\nFailed: Open {ruta_fichero_conf}"
+		).format(
+			ruta_fichero_conf=ruta_fichero_conf
+		)
+		logger.exception(
+			msg
+		)
+		return
+
+	# Abrir el XML
+	try:
+		# No se usa porque se abre de forma binaria (rb)
+		# tipo_codificacion = root_fc.find('./charsets/xml').text
 		with open(input_filepath, 'rb') as file:
 			tree = ET.parse(file)
 			root = tree.getroot()
@@ -54,18 +63,18 @@ def from_xml_to_text(input_filepath, output_filepath, tipo_boletin, doccano=Fals
 		sys.exit()
 
 	# Obtener texto
-	if aragon:
-		texto = root.find(conf.etiquetas_xml[tipo_boletin]['texto']).text
-	else:
+	if tipo_boletin == 'BOE':
 		texto = ''
-		for parrafo in root.findall(conf.etiquetas_xml[tipo_boletin]['texto']):
+		for parrafo in root.findall(root_fc.find('./etiquetas_xml/texto').text):
 			texto += parrafo.text + '\n'
+	else:
+		texto = root.find(root_fc.find('./etiquetas_xml/texto').text).text
 	
 	# Escribir fichero
 	try:
 		fp = open(output_filepath, 'w+', encoding='utf-8')
 		if doccano:
-			fp.write(textwrap3.fill(texto, width=MAX_CHARS_PER_LINE))
+			texto = textwrap3.fill(texto, width=MAX_CHARS_PER_LINE)
         
 		fp.write(texto)
 		fp.close()
@@ -85,8 +94,8 @@ def main():
 		print('Numero de parametros incorrecto.')
 		sys.exit()
 
-	input_filepath = sys.argv[1]
-	output_filepath = sys.argv[2]
+	input_filepath = pathlib.Path(sys.argv[1])
+	output_filepath = pathlib.Path(sys.argv[2])
 	tipo_boletin = sys.argv[3]
 	doccano = sys.argv[4].lower() in ['true', 't', 'verdadero']
 

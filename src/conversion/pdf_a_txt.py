@@ -12,12 +12,12 @@ import os
 import re
 import sys
 import logging
+
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import pdfplumber
 import textwrap3
-
-import configuracion_auxiliar as conf
 
 logger = logging.getLogger('pdf_a_text')
 logging.basicConfig()
@@ -66,6 +66,51 @@ def juntar_por_parrafos_punto(texto):
     texto = re.sub(r'([^.:])\n', r'\1 ', texto)
     return re.sub('[ ]+',' ', texto)
 
+def diccionario_meses():
+    ruta_fichero_aux = Path('../ficheros_configuracion/auxiliar.xml')
+    try:
+        with open(ruta_fichero_aux, 'rb') as file:
+            tree_aux = ET.parse(file)
+            root_aux = tree_aux.getroot()
+    except:
+        msg = (
+            "\nFailed: Open {ruta_fichero_aux}"
+        ).format(
+            ruta_fichero_aux=ruta_fichero_aux
+        )
+        logger.exception(
+            msg
+        )
+        sys.exit()
+
+    out = {}
+    iter = root_aux.find('./correspondencias_meses').iter()
+    next(iter)
+    for t in iter:
+        out[t.tag] = t.text
+
+    return out
+
+# Devuelve el elemento root del fichero de configuración correspondiente a tipo_boletin
+def recuperar_fichero_configuracion(tipo_boletin):
+    ruta_fichero_conf = Path('../ficheros_configuracion/' + tipo_boletin + '_conf.xml')
+    if not ruta_fichero_conf.exists():
+        return None
+    try:
+        with open(ruta_fichero_conf, 'rb') as file:
+            tree = ET.parse(file)
+            root = tree.getroot()
+    except:
+        msg = (
+            "\nFailed: Open {ruta_fichero_conf}"
+        ).format(
+            ruta_fichero_conf=ruta_fichero_conf
+        )
+        logger.exception(
+            msg
+        )
+        return
+    return root
 
 def from_pdf_to_text(
         input_filepath: str,
@@ -79,16 +124,18 @@ def from_pdf_to_text(
     except Exception as e:
         raise PDFError('No se ha podido leer el pdf.') from e
 
-    if tipo_boletin in conf.puntos_corte:
-        bounding_box = (conf.puntos_corte[tipo_boletin]['x0'],
-                        conf.puntos_corte[tipo_boletin]['top'],
-                        conf.puntos_corte[tipo_boletin]['x1'],
-                        conf.puntos_corte[tipo_boletin]['bottom'])
+    # Intentar obtener fichero de configuración del tipo_boletin.
+    root_fc = recuperar_fichero_configuracion(tipo_boletin)
+    if root_fc is not None:
+        bounding_box = (int(root_fc.find('./puntos_corte/x0').text),
+                        int(root_fc.find('./puntos_corte/top').text),
+                        int(root_fc.find('./puntos_corte/x1').text),
+                        int(root_fc.find('./puntos_corte/bottom').text))
         bounding_box_fecha = (
-            conf.puntos_corte[tipo_boletin]['x0_fecha'],
-            conf.puntos_corte[tipo_boletin]['top_fecha'],
-            conf.puntos_corte[tipo_boletin]['x1_fecha'],
-            conf.puntos_corte[tipo_boletin]['bottom_fecha']
+            int(root_fc.find('./puntos_corte/x0_fecha').text),
+            int(root_fc.find('./puntos_corte/top_fecha').text),
+            int(root_fc.find('./puntos_corte/x1_fecha').text),
+            int(root_fc.find('./puntos_corte/bottom_fecha').text)
         )
     else:			# Si el boletín no está en la cofiguración, se utilizan valores por defecto (similares a los del BOE)
         bounding_box = (50, 100, 500, 800)
@@ -131,6 +178,7 @@ def from_pdf_to_text(
 
         texto = string_inicial + '\n' + string_texto
     else:
+        # Para otro tipo de boletines, se realiza esto como procesamiento único, además del corte previo.
         texto = quitar_guion_fin_renglon(texto)
         texto = juntar_por_parrafos(texto)
 
@@ -139,24 +187,25 @@ def from_pdf_to_text(
     fecha = page.crop(bounding_box_fecha).extract_text()
 
     # Dar formato correcto a la fecha (BOA es correcto de forma predeterminada, otros boletines se dan por correctos.)
+    cambio_meses = diccionario_meses()
     if tipo_boletin == 'BOE':
         fechaAux = fecha.split(' ')
         if len(fechaAux[1]) == 1:
             fechaAux[1] = '0' + fechaAux[1]
-        fecha = fechaAux[1] + '/' + conf.cambio_meses[fechaAux[3].lower()] + '/' + fechaAux[5]
+        fecha = fechaAux[1] + '/' + cambio_meses[fechaAux[3].lower()] + '/' + fechaAux[5]
     elif tipo_boletin == 'BOPT':
         fechaAux = fecha.split(' ')
         if len(fechaAux[0]) == 1:
             fechaAux[0] = '0' + fechaAux[0]
-        fecha = fechaAux[0] + '/' + conf.cambio_meses[fechaAux[2].lower()] + '/' + fechaAux[4]
+        fecha = fechaAux[0] + '/' + cambio_meses[fechaAux[2].lower()] + '/' + fechaAux[4]
     elif tipo_boletin == 'BOPH' or tipo_boletin == 'BOPZ':
         fechaAux = fecha.split(' ')
         if len(fechaAux[0]) == 1:
             fechaAux[0] = '0' + fechaAux[0]
-        fecha = fechaAux[0] + '/' + conf.cambio_meses[fechaAux[1].lower()] + '/' + fechaAux[2]
+        fecha = fechaAux[0] + '/' + cambio_meses[fechaAux[1].lower()] + '/' + fechaAux[2]
 
     # Escribir fecha y texto
-    if tipo_boletin == 'BOPT':
+    if tipo_boletin == 'BOPT':                  # BOPT es caso complejo, como se explica en la documentación
         articulos = texto.split('Núm. ')
         split_fichero = output_filepath.split('.')
         raiz_nombre_fichero = split_fichero[0]
