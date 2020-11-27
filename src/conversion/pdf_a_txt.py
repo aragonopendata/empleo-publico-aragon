@@ -116,13 +116,21 @@ def from_pdf_to_text(
         input_filepath: str,
         output_filepath: str,
         tipo_boletin: dict,
-        doccano: bool=False
+        legible: bool=False
         ):
 
     try:
         pdf = pdfplumber.open(input_filepath)
-    except Exception as e:
-        raise PDFError('No se ha podido leer el pdf.') from e
+    except:
+        msg = (
+            "\nFailed: Read {path}"
+        ).format(
+            path=input_filepath
+        )
+        logger.exception(
+            msg
+        )
+        sys.exit()
 
     # Intentar obtener fichero de configuración del tipo_boletin.
     root_fc = recuperar_fichero_configuracion(tipo_boletin)
@@ -137,7 +145,7 @@ def from_pdf_to_text(
             int(root_fc.find('./puntos_corte/x1_fecha').text),
             int(root_fc.find('./puntos_corte/bottom_fecha').text)
         )
-    else:			# Si el boletín no está en la cofiguración, se utilizan valores por defecto (similares a los del BOE)
+    else:			# Si el boletín no está en la configuración, se utilizan valores por defecto (similares a los del BOE)
         bounding_box = (50, 100, 500, 800)
         bounding_box_fecha = (150, 75, 400, 90)
 
@@ -145,10 +153,22 @@ def from_pdf_to_text(
     texto = ''
     for page in pdf.pages:
         # withinBBoxPage = page.within_bbox(bounding_box)		# Alternativa.
-        croppedPage = page.crop(bounding_box)
-        extracted_text = croppedPage.extract_text()
-        if extracted_text is not None:
-            texto += extracted_text + '\n'   # \n necesario por las páginas que terminan con media palabra.
+        try:
+            croppedPage = page.crop(bounding_box)
+            extracted_text = croppedPage.extract_text()
+            if extracted_text is not None:
+                texto += extracted_text + '\n'   # \n necesario por las páginas que terminan con media palabra.
+        except:
+            msg = (
+                "\nWarning: Failed: Read page from {path}"
+            ).format(
+                path=input_filepath
+            )
+            logger.exception(
+                msg
+            )
+            # No invalida el documento porque suele ocurrir por páginas apaisadas, que se corresponden
+            # a tablas de puestos de anexos, que se tratarán independientemente del texto.
 
     # Dar formato correcto al texto
     if tipo_boletin == 'BOPT':
@@ -205,39 +225,24 @@ def from_pdf_to_text(
         fecha = fechaAux[0] + '/' + cambio_meses[fechaAux[1].lower()] + '/' + fechaAux[2]
 
     # Escribir fecha y texto
-    if tipo_boletin == 'BOPT':                  # BOPT es caso complejo, como se explica en la documentación
-        articulos = texto.split('Núm. ')
-        split_fichero = output_filepath.split('.')
-        raiz_nombre_fichero = split_fichero[0]
-        formato_fichero = split_fichero[1]
-        for i in range(1, len(articulos)):      # El primer trozo se descarta, al estar incompleto.
-            try:
-                fp = open(raiz_nombre_fichero + '_' + str(i) + '.' + formato_fichero, 'w+', encoding='utf-8')
-                texto = 'Núm. ' + articulos[i]
-                if doccano:
-                    texto = textwrap3.fill(texto, width=MAX_CHARS_PER_LINE)
-                fp.write(texto)
-                fp.close()
-            except Exception as e:
-                msg = (
-                    "No se ha podido escribir el"
-                    f" texto en el fichero {i} del BOPT."
-                )
-                raise OutputTextError(msg) from e
-    else:
-        try:
-            fp = open(output_filepath, 'w+', encoding='utf-8')
-            if doccano:
-                texto = textwrap3.fill(texto, width=MAX_CHARS_PER_LINE)
-            
-            fp.write(texto)
-            fp.close()
-        except Exception as e:
-            msg = (
-                "No se ha podido escribir el"
-                f" texto en el fichero {output_filepath}."
-            )
-            raise OutputTextError(msg) from e
+    if tipo_boletin == 'BOPT':
+        # Quedarse solo con el primer artículo que aparece (sin contar el incompleto), ya que los otros,
+        # en caso de ser de empleo volverán a salir. Así se evitan duplicados y problemas con las info.
+        texto = 'Núm. ' + texto.split('Núm. ')[1]
+
+    try:
+        fp = open(output_filepath, 'w+', encoding='utf-8')
+        if legible:
+            texto = textwrap3.fill(texto, width=MAX_CHARS_PER_LINE)
+        
+        fp.write(texto)
+        fp.close()
+    except Exception as e:
+        msg = (
+            "No se ha podido escribir el"
+            f" texto en el fichero {output_filepath}."
+        )
+        raise OutputTextError(msg) from e
 
 
 def main(overwrite=True):

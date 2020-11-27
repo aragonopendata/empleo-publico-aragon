@@ -1,0 +1,71 @@
+<!-- Fichero auxiliar -->
+
+<root>
+	<num_min_campos>11</num_min_campos>
+	<formatos_por_defecto>
+		<BOE>pdf</BOE>
+		<BOA>pdf</BOA>
+		<BOPH>pdf</BOPH>
+		<BOPZ>pdf</BOPZ>
+		<BOPT>xml</BOPT>
+	</formatos_por_defecto>
+	<correspondencias_meses>
+		<enero>01</enero>
+		<febrero>02</febrero>
+		<marzo>03</marzo>
+		<abril>04</abril>
+		<mayo>05</mayo>
+		<junio>06</junio>
+		<julio>07</julio>
+		<agosto>08</agosto>
+		<septiembre>09</septiembre>
+		<octubre>10</octubre>
+		<noviembre>11</noviembre>
+		<diciembre>12</diciembre>
+	</correspondencias_meses>
+	<strings_apertura>
+		<string>por la que se convoca</string>
+		<string>por la que se convocan</string>
+		<string>por la que se anuncia concurso</string>
+		<string>por la que se anuncia convocatoria</string>
+	</strings_apertura>
+	<strings_cierre>
+		<string>por la que se resuelve</string>
+		<string>por el que se resuelve</string>
+		<string>por la que se nombra</string>
+		<string>por la que se nombran</string>
+		<string>por la que se publica la relación definitiva de participantes admitidos</string>
+		<string>por la que se declara desierto</string>
+		<string>por la que se declara desierta</string>
+		<string>por la que se declaran desiertas</string>
+		<string>por la que se declara concluido el procedimiento</string>
+		<string>por la que se publica la relación de plazas desiertas</string>
+		<string>por la que se publica la resolución de plazas desiertas</string>
+		<string>por la que se efectúa el nombramiento</string>
+	</strings_cierre>
+	<strings_apertura_bops>
+		<string>vacante</string>
+		<string>provisión</string>
+		<string>oposición</string>
+		<string>concurso-oposición</string>
+		<string>concurso de méritos</string>
+		<string>bases de la convocatoria</string>
+		<string>bases para la selección</string>
+	</strings_apertura_bops>
+	<strings_cierre_bops>
+		<string>lista de admitidos</string>
+		<string>lista provisional de admitidos</string>
+		<string>desierta</string>
+	</strings_cierre_bops>
+	<strings_no_empleo>
+		<string>por la que se corrige</string>
+		<string>por la que se modifica</string>
+		<string>modificación</string>
+		<string>corrección de errores</string>
+	</strings_no_empleo>
+	<strings_no_empleo_bops>
+		<string>presupuestos</string>
+		<string>subvenciones</string>
+		<string>concesión de ayudas</string>
+	</strings_no_empleo_bops>
+</root>

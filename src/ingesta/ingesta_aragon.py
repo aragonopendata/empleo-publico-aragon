@@ -112,8 +112,10 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 
 	strings_apertura = recuperar_strings('apertura')
 	strings_cierre = recuperar_strings('cierre')
+	strings_no_empleo = recuperar_strings('no_empleo', True)
 	strings_apertura_bops = recuperar_strings('apertura',True)
 	strings_cierre_bops = recuperar_strings('cierre',True)
+	strings_no_empleo_bops = recuperar_strings('no_empleo', True)
 	indice = 1	# Número de secuencia dado al artículo
 	
 	for indice_iter in range(len(urls_sumarizados)):
@@ -125,7 +127,8 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 		encoded_information = information.content
 		decoded_information = encoded_information.decode(root_fc.find('./charsets/url_sumarizado').text)
 
-		#Chequear que en el día indicado ha habido boletín del tipo indicado.
+		# Chequear que en el día indicado ha habido boletín del tipo indicado.
+		# (Puede ocurrir que sea día laborable y no haya artículos de esta sección)
 		try:
 			root_check = ET.fromstring(decoded_information)
 		except:
@@ -201,8 +204,11 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 		for item in root.findall(root_fc.find('./etiquetas_xml_sumario/registro').text):
 
 			# Realizar la división en aperturas y cierres. (Preferencia a aperturas en BOA, a cierres en BOPs por haber menos)
-			tit = item.find(root_fc.find('./etiquetas_xml/titulo').text).text
+			tit = item.find(root_fc.find('./etiquetas_xml/auxiliares/titulo').text).text
 			if tipo == 'BOA':
+				for cadena in strings_no_empleo:	# Si no es de empleo, no guardar artículo
+					if cadena in tit.lower():
+						continue
 				es_apertura = False
 				es_cierre = False
 				for cadena in strings_apertura:
@@ -221,7 +227,11 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 					else:
 						continue		# Saltar el artículo
 			else:
-				texto = item.find(root_fc.find('./etiquetas_xml/texto').text).text.lower()
+				texto = item.find(root_fc.find('./etiquetas_xml/auxiliares/texto').text).text.lower()
+				if encontrar_cadenas(tit.lower(), strings_no_empleo_bops) or encontrar_cadenas(texto.lower(), strings_no_empleo_bops) or \
+				   encontrar_cadenas(tit.lower(), strings_no_empleo) or encontrar_cadenas(texto.lower(), strings_no_empleo) > 2:
+					# Evitar artículos que no sean ofertas de empleo
+					continue
 				num_encontrados = encontrar_cadenas(tit.lower(), strings_cierre_bops)
 				if num_encontrados:				# Si encuentra algún cierre en el título, guardar en cierre
 					tipo_articulo = 'cierre'
@@ -252,7 +262,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 			# Ubicar el enlace del pdf del artículo.
 			# 	(Si sale entre etiquetas de enlace, quitarlas. Si salen varios, coger el primero únicamente.)
 			urls = {}
-			aux = item.find(root_fc.find('./etiquetas_xml/urlPdf').text).text
+			aux = item.find(root_fc.find('./etiquetas_xml/auxiliares/urlPdf').text).text
 			if aux.startswith('<enlace>'):
 				aux = aux[8:].split('</enlace>')[0]
 			urls['pdf'] = aux
@@ -289,19 +299,20 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 			enlace = ET.SubElement(articulo, 'enlace_convocatoria')
 			enlace.text = urls['html']
 
-			# Obtención de rango y órgano convocante (título cogido antes, y no hay ELI URI)
-			departamento = item.find(root_fc.find('./etiquetas_xml/organo').text).text
-			rango_encontrado = item.find(root_fc.find('./etiquetas_xml/rango').text).text
-			eli = '-'
+			# Coger los datos que se van a guardar en info desde el xml, indicados en el fc.
+			etiquetas = []
+			for i in root_fc.find('./etiquetas_xml/a_guardar').iter():
+				etiquetas.append((i.tag, i.text))
+			etiquetas = etiquetas[1:]
 
-			organo_convocante = ET.SubElement(articulo, 'organo_convocante')
-			organo_convocante.text = departamento
-			titulo = ET.SubElement(articulo, 'titulo')
-			titulo.text = tit
-			eli_uri = ET.SubElement(articulo, 'uri_eli')
-			eli_uri.text = eli
-			rango = ET.SubElement(articulo, 'rango')
-			rango.text = rango_encontrado
+			for et_tag, et_text in etiquetas:
+				SE = ET.SubElement(articulo, et_tag)
+				el = item.find(et_text)
+				SE.text = el.text if el is not None else '-'
+
+			if 'uri_eli' not in [e[0] for e in etiquetas]:
+				SE = ET.SubElement(articulo, 'uri_eli')
+				SE.text = '-'
 
 			tree_info = ET.ElementTree(root_info)
 

@@ -2,9 +2,9 @@
 # Autor: Oscar Potrony
 # Fecha: 02/10/2020
 # Descripción: Convierte los ficheros del directorio indicado (del formato indicado en el fichero de configuración) a texto y los almacena
-#			   en la carpeta txt. Los convierte con formato apto para Doccano en caso de que bool_doccano sea True.
+#			   en la carpeta txt. Los convierte con formato legible en caso de que bool_legible sea True.
 # Invocación:
-#	python html_a_txt.py ruta_html ruta_txt tipo_boletin bool_doccano
+#	python html_a_txt.py ruta_html ruta_txt tipo_boletin bool_legible
 # Ejemplo invocación:
 #	python html_a_txt.py .\data\raw\20200930\html\BOE_20200930_1.html .\data\extracted\20200930\txt\BOE_20200930_1.txt BOE False
 
@@ -28,7 +28,7 @@ logger.addHandler(ch)
 
 MAX_CHARS_PER_LINE = 500
 
-def from_html_to_text(input_filepath, output_filepath, tipo_boletin, doccano):
+def from_html_to_text(input_filepath, output_filepath, tipo_boletin, legible):
 	# Recuperar fichero de configuración
 	ruta_fichero_conf = pathlib.Path('../ficheros_configuracion/' + tipo_boletin + '_conf.xml')
 	try:
@@ -92,7 +92,7 @@ def from_html_to_text(input_filepath, output_filepath, tipo_boletin, doccano):
 	# Escribir fichero
 	try:
 		fp = open(output_filepath, 'w+', encoding='utf-8')
-		if doccano:
+		if legible:
 			texto_html = textwrap3.fill(texto_html, width=MAX_CHARS_PER_LINE)
         
 		fp.write(texto_html)
@@ -116,9 +116,9 @@ def main():
 	input_filepath = pathlib.Path(sys.argv[1])
 	output_filepath = pathlib.Path(sys.argv[2])
 	tipo_boletin = sys.argv[3]
-	doccano = sys.argv[4].lower() in ['true', 't', 'verdadero']
+	legible = sys.argv[4].lower() in ['true', 't', 'verdadero']
 
-	from_html_to_text(input_filepath, output_filepath, tipo_boletin, doccano)
+	from_html_to_text(input_filepath, output_filepath, tipo_boletin, legible)
 
 if __name__ == "__main__":
 	main()

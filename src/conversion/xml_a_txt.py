@@ -3,7 +3,7 @@
 # Fecha: 02/10/2020
 # Descripción: Lee el boletín indicado en XML y lo guarda como txt en la ruta indicada.
 # Invocación:
-#	python xml_a_txt.py ruta_xml ruta_txt tipo_boletin bool_doccano
+#	python xml_a_txt.py ruta_xml ruta_txt tipo_boletin bool_legible
 # Ejemplo invocación:
 #	python xml_a_txt.py .\data\raw\20200930\xml\BOE_20200930_1.xml .\data\extracted\20200930\txt\BOE_20200930_1.txt BOE False
 
@@ -26,7 +26,7 @@ logger.addHandler(ch)
 
 MAX_CHARS_PER_LINE = 500
 
-def from_xml_to_text(input_filepath, output_filepath, tipo_boletin, doccano=False):
+def from_xml_to_text(input_filepath, output_filepath, tipo_boletin, legible=False):
 	# Recuperar fichero de configuración
 	ruta_fichero_conf = pathlib.Path('../ficheros_configuracion/' + tipo_boletin + '_conf.xml')
 	try:
@@ -65,15 +65,15 @@ def from_xml_to_text(input_filepath, output_filepath, tipo_boletin, doccano=Fals
 	# Obtener texto
 	if tipo_boletin == 'BOE':
 		texto = ''
-		for parrafo in root.findall(root_fc.find('./etiquetas_xml/texto').text):
+		for parrafo in root.findall(root_fc.find('./etiquetas_xml/auxiliares/texto').text):
 			texto += parrafo.text + '\n'
 	else:
-		texto = root.find(root_fc.find('./etiquetas_xml/texto').text).text
+		texto = root.find(root_fc.find('./etiquetas_xml/auxiliares/texto').text).text
 	
 	# Escribir fichero
 	try:
 		fp = open(output_filepath, 'w+', encoding='utf-8')
-		if doccano:
+		if legible:
 			texto = textwrap3.fill(texto, width=MAX_CHARS_PER_LINE)
         
 		fp.write(texto)
@@ -97,9 +97,9 @@ def main():
 	input_filepath = pathlib.Path(sys.argv[1])
 	output_filepath = pathlib.Path(sys.argv[2])
 	tipo_boletin = sys.argv[3]
-	doccano = sys.argv[4].lower() in ['true', 't', 'verdadero']
+	legible = sys.argv[4].lower() in ['true', 't', 'verdadero']
 
-	from_xml_to_text(input_filepath, output_filepath, tipo_boletin, doccano)
+	from_xml_to_text(input_filepath, output_filepath, tipo_boletin, legible)
 
 if __name__ == "__main__":
 	main()

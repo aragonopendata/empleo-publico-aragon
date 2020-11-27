@@ -18,17 +18,20 @@
 		<nombramientos>./diario/seccion[@num="2A"]/departamento/epigrafe/item</nombramientos>
 	</secciones_xml>
 	<etiquetas_xml>
-		<raiz>sumario</raiz>
-		<fecha_publicacion>./metadatos/fecha_publicacion</fecha_publicacion>
-		<titulo>./metadatos/titulo</titulo>
-		<titulo_item>./titulo</titulo_item>
-		<organo>./metadatos/departamento</organo>
-		<texto>./texto/p</texto>
-		<urlPdf>./metadatos/url_pdf</urlPdf>
-		<ELI>./metadatos/url_eli</ELI>
-		<rango>./metadatos/rango</rango>
-		<id_orden>./metadatos/numero_oficial</id_orden>
-		<fecha_disposicion>./metadatos/fecha_disposicion</fecha_disposicion>
+		<auxiliares>
+			<raiz>sumario</raiz>
+			<titulo_item>./titulo</titulo_item>
+			<rango>./metadatos/rango</rango>
+			<texto>./texto/p</texto>
+		</auxiliares>
+		<a_guardar>
+			<titulo>./metadatos/titulo</titulo>
+			<organo_convocante>./metadatos/departamento</organo_convocante>
+			<uri_eli>./metadatos/url_eli</uri_eli>
+			<rango>./metadatos/rango</rango>
+			<id_orden>./metadatos/numero_oficial</id_orden>
+			<fecha_disposicion>./metadatos/fecha_disposicion</fecha_disposicion>
+		</a_guardar>
 	</etiquetas_xml>
 	<url_formatos>
 		<pdf>urlPdf</pdf>

@@ -122,7 +122,7 @@ def ingesta_diaria_boe(dia, directorio_base):
 	# Chequear que en el día indicado ha habido BOE
 	root_check = ET.fromstring(contenido)
 	try:
-		assert root_check.tag == root_fc.find('./etiquetas_xml/raiz').text
+		assert root_check.tag == root_fc.find('./etiquetas_xml/auxiliares/raiz').text
 	except:
 		msg = (
 			"\nFailed assert: El tag del root es {tag},"
@@ -174,6 +174,7 @@ def ingesta_diaria_boe(dia, directorio_base):
 
 	strings_apertura = recuperar_strings('apertura')
 	strings_cierre = recuperar_strings('cierre')
+	strings_no_empleo = recuperar_strings('no_empleo')
 	indice = 1
 	# Por cada artículo de las secciones que nos interesan del fichero de configuración:
 	#		(se juntan ambas porque en la 2A también aparecen nombramientos)
@@ -181,7 +182,13 @@ def ingesta_diaria_boe(dia, directorio_base):
 				root.findall(root_fc.find('./secciones_xml/nombramientos').text):
 
 		# Comprobar si el fichero es de apertura o cierre (preferencia a apertura)
-		tit = item.find(root_fc.find('./etiquetas_xml/titulo_item').text).text
+		tit = item.find(root_fc.find('./etiquetas_xml/auxiliares/titulo_item').text).text
+		no_es_empleo = False
+		for cadena in strings_no_empleo:
+			if cadena in tit.lower():	# Si no es de empleo, no guardar artículo
+				no_es_empleo = True
+		if no_es_empleo:
+			continue
 		es_apertura = False
 		es_cierre = False
 		for cadena in strings_apertura:
@@ -221,7 +228,7 @@ def ingesta_diaria_boe(dia, directorio_base):
 				contenido_url = requests.get(url).content
 				if formato == 'xml':
 					root_tmp = ET.fromstring(contenido_url)
-					rango_encontrado = root_tmp.find(root_fc.find('./etiquetas_xml/rango').text).text
+					rango_encontrado = root_tmp.find(root_fc.find('./etiquetas_xml/auxiliares/rango').text).text
 					if rango_encontrado.lower() not in ['resolución', 'resolucion', 'orden']:
 						siguiente_iteracion = True	# No es convocatoria ni cierre de convocatoria, se descarta
 						break
@@ -256,46 +263,45 @@ def ingesta_diaria_boe(dia, directorio_base):
 		enlace = ET.SubElement(articulo, 'enlace_convocatoria')
 		enlace.text = url_html
 
-			# Lectura del XML del artículo para obtener título, órgano convocante, ELI URI, rango, id orden y f_disp
+			# Lectura del XML del artículo para obtener etiquetas
 		nombre_xml_fichero = nombre_fichero + '.xml'
 		with open(directorio_base / dia / tipo_articulo / 'xml' / nombre_xml_fichero,'rb') as file:
 			tree_aux = ET.parse(file)
 			root_aux = tree_aux.getroot()
 
-			# Obtención de dichos seis campos
-		tit = root_aux.find(root_fc.find('./etiquetas_xml/titulo').text).text
-		departamento = root_aux.find(root_fc.find('./etiquetas_xml/organo').text).text
-		eli = root_aux.find(root_fc.find('./etiquetas_xml/ELI').text)
-		if eli is not None:
-			eli = eli.text
-		else:
-			eli = '-'
-		rango_encontrado = root_aux.find(root_fc.find('./etiquetas_xml/rango').text).text
-		idor = '-'
-		if rango_encontrado.lower() == 'orden':
-			idor = root_aux.find(root_fc.find('./etiquetas_xml/id_orden').text).text
-		f_disp = root_aux.find(root_fc.find('./etiquetas_xml/fecha_disposicion').text).text
-		f_disp = f_disp[-2:]+'/'+f_disp[5:7]+'/'+f_disp[:4]										# Darle formato
+			#Lectura de etiquetas a guardar
+		etiquetas = []
+		for i in root_fc.find('./etiquetas_xml/a_guardar').iter():
+			etiquetas.append((i.tag, i.text))
+		etiquetas = etiquetas[1:]
 
-		organo_convocante = ET.SubElement(articulo, 'organo_convocante')
-		organo_convocante.text = departamento
-		titulo = ET.SubElement(articulo, 'titulo')
-		titulo.text = tit
-		eli_uri = ET.SubElement(articulo, 'uri_eli')
-		eli_uri.text = eli
-		rango = ET.SubElement(articulo, 'rango')
-		rango.text = rango_encontrado
-		id_orden = ET.SubElement(articulo, 'id_orden')
-		id_orden.text = idor
-		fecha_disposicion = ET.SubElement(articulo, 'fecha_disposicion')
-		fecha_disposicion.text = f_disp
+		buscar_id_orden = 'rango' in [e[0] for e in etiquetas] and \
+								root_aux.find(root_fc.find('./etiquetas_xml/a_guardar/rango').text).text.lower() == 'orden'
 
+			# Obtención de textos de las etiquetas
+		for et_tag, et_text in etiquetas:
+			if et_tag == 'fecha_disposicion':
+				SE = ET.SubElement(articulo, et_tag)
+				el = root_aux.find(et_text)
+				SE.text = '-' if el is None else el.text[-2:]+'/'+el.text[5:7]+'/'+el.text[:4]
+			elif et_tag == 'id_orden':
+				if buscar_id_orden:
+					SE = ET.SubElement(articulo, et_tag)
+					el = root_aux.find(et_text)
+					SE.text = el.text if el is not None else '-'
+			else:
+				SE = ET.SubElement(articulo, et_tag)
+				el = root_aux.find(et_text)
+				SE.text = el.text if el is not None else '-'				
+
+		if 'uri_eli' not in [e[0] for e in etiquetas]:
+			SE = ET.SubElement(articulo, 'uri_eli')
+			SE.text = '-'
 
 		tree_info = ET.ElementTree(root_info)
 
 		with open(directorio_base / dia / tipo_articulo / 'info' / nombre_xml_fichero,'wb') as file:
 			tree_info.write(file)
-
 
 		# Crear pdf rotado
 		nombre_pdf = nombre_fichero + '.pdf'

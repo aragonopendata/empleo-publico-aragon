@@ -2,21 +2,22 @@
 # Autor: Oscar Potrony
 # Fecha: 02/10/2020
 # Descripción: Convierte los ficheros del directorio indicado (del formato indicado en el fichero de configuración) a texto y los almacena
-#			   en la carpeta txt. Los convierte con formato apto para Doccano en caso de que bool_doccano sea True.
+#			   en la carpeta txt. Los convierte con formato legible en caso de que bool_legible sea True.
 # Invocación:
-#	python conversion_a_texto.py directorio_base bool_doccano
+#	python conversion_a_texto.py directorio_base ruta_auxiliar bool_legible
 # Ejemplo invocación:
-#	python conversion_a_texto.py .\data\raw\20200929\ False
+#	python conversion_a_texto.py .\data\raw\20200929\ C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml False
 
 import sys
 import os
 import logging
 
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import pdf_a_txt
 import xml_a_txt
-# import html_a_txt
+import html_a_txt
 
 logger = logging.getLogger('conversion_a_texto')
 logging.basicConfig()
@@ -26,57 +27,68 @@ ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
 
-def conversion_a_texto(directorio_base, doccano=False):
-	
+def conversion_a_texto(directorio_base, ruta_auxiliar, legible=False):
+	try:
+		with open(ruta_auxiliar, 'rb') as file:
+			tree_auxiliar = ET.parse(file)
+			root_auxiliar = tree_auxiliar.getroot()
+	except:
+		msg = (
+			"\nFailed: Open {ruta_auxiliar}"
+		).format(
+			ruta_auxiliar=ruta_auxiliar
+		)
+		logger.exception(
+			msg
+		)
+		sys.exit()
+
 	# Crear directorio de txt si no está creado
 	try:
-		path = Path(directorio_base + 'txt/')
-		if not path.exists():
-			path.mkdir()
+		for tipo_articulo in ['apertura', 'cierre']:
+			path_txt = directorio_base / tipo_articulo / 'txt'
+			if not path_txt.exists():
+				path_txt.mkdir()
 	except:
 		msg = (
 			"\nFailed: Create {path}"
 		).format(
-			path=path
+			path=path_txt
 		)
 		logger.exception(
 			msg
 		)
 
-	# Se han analizado (documento de validación) y es preferible el pdf, pues en ocasiones aparecen
-	# tablas sin bordes en el BOA (con denominación y grupo del puesto), que no aparece en XML y HTML
-	formato = 'pdf'
-	formato = formato.lower()
+	legible_sufijo = ''
+	if legible:
+		legible_sufijo = '_legible'
 
-	assert formato in ['pdf', 'html', 'xml']
+	for tipo_articulo in ['apertura', 'cierre']:
+		for filename in os.listdir(directorio_base / tipo_articulo / 'pdf'):
+			if filename != 'rotados':
+				tipo_boletin = filename.split('_')[0]
+				formato = root_auxiliar.find('./formatos_por_defecto/' + tipo_boletin).text
+				input_filepath = directorio_base / tipo_articulo / formato / (filename.split('.')[0] + '.' + formato)
+				output_filepath = directorio_base / tipo_articulo / 'txt' / (filename.split('.')[0] + legible_sufijo + '.txt')
 
-	doccano_sufijo = ''
-	if doccano:
-		doccano_sufijo = '_doccano'
-
-	for filename in os.listdir(directorio_base + formato + '/'):
-		if filename is not 'rotados':
-			input_filepath = directorio_base + formato + '/' + filename
-			output_filepath = directorio_base + 'txt/' + filename.split('.')[0] + doccano_sufijo + '.txt'
-			tipo_boletin = filename.split('_')[0]
-
-			if formato == 'pdf':
-				pdf_a_txt.from_pdf_to_text(input_filepath, output_filepath, tipo_boletin, doccano)
-			elif formato == 'xml':
-				xml_a_txt.from_xml_to_text(input_filepath, output_filepath, tipo_boletin, doccano)
-			elif formato == 'html':
-				html_a_txt.from_html_to_text(input_filepath, output_filepath, tipo_boletin, doccano)
+				if formato == 'pdf':
+					pdf_a_txt.from_pdf_to_text(input_filepath, output_filepath, tipo_boletin, legible)
+				elif formato == 'xml':
+					xml_a_txt.from_xml_to_text(input_filepath, output_filepath, tipo_boletin, legible)
+				elif formato == 'html':
+					html_a_txt.from_html_to_text(input_filepath, output_filepath, tipo_boletin, legible)
 			
 
 def main():
-	if len(sys.argv) != 3:
+	if len(sys.argv) != 4:
 		print('Numero de parametros incorrecto.')
 		sys.exit()
 
-	directorio_base = sys.argv[1]
-	doccano = sys.argv[2].lower() in ['true', 't', 'verdadero']
+	directorio_base = Path(sys.argv[1])
+	ruta_auxiliar = Path(sys.argv[2])
+	legible = sys.argv[3].lower() in ['true', 't', 'verdadero']
 
-	conversion_a_texto(directorio_base, doccano)
+	conversion_a_texto(directorio_base, ruta_auxiliar, legible)
 
 if __name__ == "__main__":
 	main()

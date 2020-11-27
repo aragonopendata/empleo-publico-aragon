@@ -16,12 +16,16 @@
 		<registro>./registro</registro>
 	</etiquetas_xml_sumario>
 	<etiquetas_xml>
-		<fecha_publicacion>./fecha</fecha_publicacion>
-		<titulo>./titulo</titulo>
-		<organo>./emisor</organo>
-		<texto>./texto</texto>
-		<urlPdf>./url</urlPdf>
-		<rango>./rango</rango>
+		<auxiliares>
+			<titulo>./titulo</titulo>
+			<texto>./texto</texto>
+			<urlPdf>./url</urlPdf>
+		</auxiliares>
+		<a_guardar>
+			<titulo>./titulo</titulo>
+			<organo_convocante>./emisor</organo_convocante>
+			<rango>./rango</rango>
+		</a_guardar>
 	</etiquetas_xml>
 	<charsets>
 		<listado_ELI>iso-8859-1</listado_ELI>

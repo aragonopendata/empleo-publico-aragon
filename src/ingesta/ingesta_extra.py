@@ -150,7 +150,7 @@ def ingesta_diaria_extra(dia, directorio_base, tipo_boletin):
 
 	# Preparar etiquetas que indica el fichero de configuración que se pueden obtener de cada ítem.
 	etiquetas = []
-	for e in root_fc.find('./etiquetas_xml').iter():
+	for e in root_fc.find('./etiquetas_xml/a_guardar').iter():
 		etiquetas.append(e)
 	etiquetas = etiquetas[1:]
 
@@ -164,9 +164,9 @@ def ingesta_diaria_extra(dia, directorio_base, tipo_boletin):
 		# Mediante título o texto (si no hay título), dividir en apertura y cierre.
 		# Si no están estos, no se guarda (innecesario un artículo sin título ni texto).
 		if 'titulo' in etiquetas:
-			t = item.find(root_fc.find('./etiquetas_xml/titulo').text).text
+			t = item.find(root_fc.find('./etiquetas_xml/a_guardar/titulo').text).text
 		elif 'texto' in etiquetas:
-			t = item.find(root_fc.find('./etiquetas_xml/texto').text).text
+			t = item.find(root_fc.find('./etiquetas_xml/a_guardar/texto').text).text
 		else:
 			continue
 
@@ -200,17 +200,17 @@ def ingesta_diaria_extra(dia, directorio_base, tipo_boletin):
 				hay_pdf = True
 				et_pdf = etiqueta
 				nombre_fichero_pdf = nombre_fichero + '.pdf'
-				etiquetas.remove(etiqueta)
+				# etiquetas.remove(etiqueta)
 			elif 'xml' in etiqueta.lower():
 				hay_xml = True
 				et_xml = etiqueta
 				nombre_fichero_xml = nombre_fichero + '.xml'
-				etiquetas.remove(etiqueta)
+				# etiquetas.remove(etiqueta)
 
 		# Guardar XML (de URL si lo hay y el propio ítem si no lo hay)
 		ruta_fichero_xml = directorio_base / dia / tipo_articulo / 'xml' / nombre_fichero_xml
 		if hay_xml:
-			url = item.find(root_fc.find('./etiquetas_xml/' + et_xml).text).text
+			url = item.find(root_fc.find('./etiquetas_xml/a_guardar/' + et_xml).text).text
 			contenido_url = requests.get(url).content
 			with open(ruta_fichero_xml, 'wb') as file:
 					file.write(contenido_url)
@@ -222,14 +222,14 @@ def ingesta_diaria_extra(dia, directorio_base, tipo_boletin):
 
 		# Guardar PDF si lo hay
 		if hay_pdf:
-			url = item.find(root_fc.find('./etiquetas_xml/' + et_pdf).text).text
+			url = item.find(root_fc.find('./etiquetas_xml/a_guardar/' + et_pdf).text).text
 			contenido_url = requests.get(url).content
 			with open(directorio_base / dia / tipo_articulo / 'pdf' / nombre_fichero_pdf, 'wb') as file:
 					file.write(contenido_url)
 
 		# Guardar HTML si lo hay
 		if hay_html:
-			url = item.find(root_fc.find('./etiquetas_xml/' + et_html).text).text
+			url = item.find(root_fc.find('./etiquetas_xml/a_guardar/' + et_html).text).text
 			contenido_url = requests.get(url).content
 			with open(directorio_base / dia / tipo_articulo / 'html' / nombre_fichero_html, 'wb') as file:
 					file.write(contenido_url)
@@ -247,7 +247,7 @@ def ingesta_diaria_extra(dia, directorio_base, tipo_boletin):
 		# Guardar en lista, con mismo índice que la etiqueta, los textos de las mismas encontrados en el XML.
 		texto_etiquetas = []
 		for etiqueta in etiquetas:
-			texto_etiquetas.append(root_aux.find(root_fc.find('./etiquetas_xml/'+etiqueta).text).text)
+			texto_etiquetas.append(root_aux.find(root_fc.find('./etiquetas_xml/a_guardar/'+etiqueta).text).text)
 
 		# Incorporar etiquetas y textos al árbol
 		for i, etiqueta in enumerate(etiquetas):
