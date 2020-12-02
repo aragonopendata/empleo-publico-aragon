@@ -22,6 +22,7 @@ import spacy
 
 import extraccion_reglas
 import extraccion_ner
+import extraccion_tablas
 
 from workalendar.europe import Spain
 from spa2num.converter import to_number
@@ -216,6 +217,20 @@ def obtener_fechas_presentacion(root_regex, plazo, fpub):
 # Devuelve el texto pasado, limpiado y convertido a número
 def limpiar_texto_plazas(texto):
 	texto = texto.lower()
+
+	# Tratar los números de plazas compuestos
+	if ' y ' in texto:
+		split_y = texto.split(' ')
+		for i, l in enumerate(split_y):
+			if l == 'y':
+				i_y = i
+		texto = split_y[i_y-1] + ' y ' + split_y[i_y+1]
+		try:
+			texto = to_number(texto)
+			return texto
+		except:
+			texto = split_y[i_y+1]
+
 	terminos_a_eliminar = ['puestos', 'vacantes', 'plazas', 'puesto', 'vacante', 'plaza', 'número de', ':', 'totales']
 	terminos_una_plaza = ['una', 'un', 'del', 'el', 'la']
 	for t in terminos_a_eliminar:
@@ -226,8 +241,6 @@ def limpiar_texto_plazas(texto):
 		texto = to_number(texto)
 	except:
 		texto = '-'
-		# msg = ("\nFailed: Convert {texto} to number").format(texto=texto)
-		# logger.exception(msg)
 	
 	return texto
 
@@ -240,7 +253,6 @@ def obtener_num_plazas(tit_reg, tex_reg, tex_ner, num_puestos):
 			p = limpiar_texto_plazas(p)
 			if p != '-': return p
 
-	 
 	if len(tex_reg) + len(tex_ner) == 0: return '-'
 
 	# Limpiar todas las ocurrencias encontradas
@@ -251,7 +263,7 @@ def obtener_num_plazas(tit_reg, tex_reg, tex_ner, num_puestos):
 			lista.append(t)
 
 	# Eliminar duplicados y ordenar de mayor a menor.
-	lista = sorted(list(set(lista)))
+	lista = sorted(list(set(lista)), reverse=True)
 
 	# Devolver el mayor número encontrado, si es mayor o igual que el número de puestos.
 	if lista: return lista[0] if lista[0] >= num_puestos else num_puestos
@@ -263,6 +275,33 @@ def leer_stopwords():
 	with open(Path('../ficheros_configuracion/stopwords.txt'), encoding='utf-8') as file:
 		for line in file:
 			out.append(line.rstrip('\n'))
+	return out
+
+# Quita escalas incorrectas que ha podido coger el ner
+def quitar_escalas_incorrectas(lista):
+	cadenas = ['escala a que pertenece', 'escala a la que pertenece', 'escala grupo', 'escala o clase de especialidad',
+			   'escala situación administrativa', 'escala por promoción', 'escala de procedencia', 'escala subgrupo',
+			   'escala grup/subg']
+	cortas_correctas = ['de', 'y']
+	out = []
+	for e in lista:
+		meter = True
+		for cadena in cadenas:
+			if cadena in e.lower(): meter = False
+		for word in e.lower().split(' '):
+			if len(word) < 4 and word not in cortas_correctas: meter = False
+		if meter: out.append(e)
+	return out
+
+# Quita cuerpos incorrectos que ha podido coger el ner
+def quitar_cuerpos_incorrectos(lista):
+	cortas_correctas = ['de', 'y']
+	out = []
+	for e in lista:
+		meter = True
+		for word in e.lower().split(' '):
+			if len(word) < 4 and word not in cortas_correctas: meter = False
+		if meter: out.append(e)
 	return out
 
 # Devuelve texto, sin stopwords al principio ni al final del mismo.
@@ -286,6 +325,15 @@ def evitar_extremo_stopword(texto, stopwords):
 			texto = texto.lstrip(' \t\n.:,)')
 
 	return texto
+
+# Quitar de lista los elementos que empiezan por una stopword
+def quitar_puestos_con_inicio_stopword(lista, stopwords):
+	out = []
+	for e in lista:
+		e = e.lstrip(' \t\n.-')
+		if e.split(' ')[0] not in stopwords:
+			out.append(e)
+	return out
 
 # Devuelve el puesto del ner tras quitarle ciertas substrings.
 def limpiar_puesto_ner(texto, stopwords):
@@ -317,36 +365,19 @@ def limpiar_puestos_ner(lista, stopwords):
 
 	return out
 
-# DEPRECATED:
 # Devuelve una lista con los puestos detectados.
 # (Los puestos de reglas vienen más o menos limpios, mientras que los del ner no)
-def obtener_todos_los_puestos(p_reg, p_ner):
-	if len(p_reg) + len(p_ner) == 0: return '-'
-
-	# Juntar y limpiar con strip todos los puestos obtenidos (limpiando previamente los de ner)
-	out = [p.rstrip(' \t\n.:,(').lstrip(' \t\n.:,)') for p in [e.lower() for e in p_reg] + limpiar_puestos_ner([e.lower() for e in p_ner])]
-
-	# Eliminar duplicados y capitalizar
-	return [p.capitalize() for p in set(out)]
-
-	## TODO: Al meter puestos obtenidos en tablas:
-	#			Si la tabla es horizontal, realizar primero una diferencia de conjuntos para quitar los duplicados respecto
-	#			a lo obtenido con reglas/ner, ya que podrían haber leído bien las tablas.
-	#			Si la tabla es vertical, incorporar los puestos encontrados en el conjunto.
-
-# Devuelve una lista con los puestos detectados.
-# (Los puestos de reglas vienen más o menos limpios, mientras que los del ner no)
-def obtener_puestos(p_reg, p_ner, stopwords):
+def obtener_puestos(p_reg, p_ner, p_tablas, stopwords):
+	if p_tablas:
+		return [p.lower().replace('código de puesto','').rstrip(' \t\n.:,–-(0123456789)').lstrip(' \t\n.:,)-').capitalize() for p in p_tablas]
 	if p_reg:
-		return [p_reg[0].lower().rstrip(' \t\n.:,(').lstrip(' \t\n.:,)').capitalize()]
+		return [p_reg[0].lower().rstrip(' \t\n.:,(').lstrip(' \t\n.:,)-').capitalize()]
 
 	p_ner = limpiar_puestos_ner([e.lower() for e in p_ner], stopwords)
 	if p_ner:
 		return [p_ner[0].capitalize()]
 	else:
 		return '-'
-
-	## TODO: Con puestos de tablas: Coger todos los puestos obtenidos en las tablas de los anexos (nada de reglas ni ner)
 
 # Devuelve la fecha de disposición limpia (la primera de la lista, que es no vacía).
 def obtener_fecha_disposicion(lista, fpub, root_aux):
@@ -381,6 +412,7 @@ def limpiar_por_texto(lista, texto):
 	if not lista: return lista
 	out = []
 	for e in lista:
+		e = e.lower()
 		if texto in e: out.append(e.lstrip(' \t\n.,:').rstrip(' \t\n.,:').capitalize())
 	return out
 
@@ -404,19 +436,40 @@ def escribir_puestos_en_info(SE, puestos):
 
 	return SE
 
-def evaluar_articulo(dia, ruta_info, ruta_texto, ruta_modelo_NER, ruta_regex, ruta_auxiliar):
+# Añade los puestos leídos de tablas en el fichero pdf pasado al fichero de info
+def evaluar_tablas_cierre(ruta_info, ruta_pdf, ruta_auxiliar):
+	root_info = obtener_root_fichero(ruta_info)
+	stopwords = leer_stopwords()
+
+	# Obtener puestos de las tablas
+	puestos_tablas = quitar_puestos_con_inicio_stopword(extraccion_tablas.obtener_puestos(ruta_pdf, ruta_auxiliar), stopwords)
+
+	# Incorporar los campos al árbol de info
+	articulo = root_info.find('articulo')
+	articulo = escribir_puestos_en_info(articulo, puestos_tablas)
+
+	# Escribir fichero de info
+	with open(ruta_info,'wb') as file:
+		tree_info = ET.ElementTree(root_info)
+		tree_info.write(file)
+
+
+# Modifica el fichero info pasado con todos los campos encontrados agregados.
+def evaluar_articulo(dia, ruta_info, ruta_texto, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar):
+	print('\nArticulo', ruta_texto)
 	root_info = obtener_root_fichero(ruta_info)
 	root_regex = obtener_root_fichero(ruta_regex)
 	root_auxiliar = obtener_root_fichero(ruta_auxiliar)
 	fecha_publicacion = obtener_metadato(root_info, 'fecha_publicacion').text
+	stopwords = leer_stopwords()
 	ents_reglas = extraccion_reglas.obtener_campos_reglas(dia, ruta_info, ruta_texto, ruta_regex)
 	keys_reglas = ents_reglas.keys()
 	ents_ner = extraccion_ner.obtener_campos_ner(ruta_texto, ruta_modelo_NER)
 	keys_ner = ents_ner.keys()
-	stopwords = leer_stopwords()
-	print('\nArticulo', ruta_texto)
+	puestos_tablas = quitar_puestos_con_inicio_stopword(extraccion_tablas.obtener_puestos(ruta_pdf, ruta_auxiliar), stopwords)
 	print('Reglas', ents_reglas)
 	print('NER', ents_ner)
+	print('Tablas', puestos_tablas)
 
 	## Campos que aparecen siempre en metadatos:
 	#	fuente_datos, fecha_publicacion, enlace_convocatoria, organo_convocante, titulo, uri_eli*, rango*
@@ -443,8 +496,8 @@ def evaluar_articulo(dia, ruta_info, ruta_texto, ruta_modelo_NER, ruta_regex, ru
 
 	# Escala
 	escala = evitar_extremo_stopword(primero_por_preferencia(
-					limpiar_por_texto(ents_ner['escala'] if 'escala' in keys_ner else [], 'escala'),
-					ents_reglas['escala'] if 'escala' in keys_reglas else []
+					quitar_escalas_incorrectas(limpiar_por_texto(ents_ner['escala'] if 'escala' in keys_ner else [], 'escala')),
+					quitar_escalas_incorrectas(ents_reglas['escala']) if 'escala' in keys_reglas else []
 					), stopwords).capitalize()
 
 	# Subescala
@@ -455,8 +508,8 @@ def evaluar_articulo(dia, ruta_info, ruta_texto, ruta_modelo_NER, ruta_regex, ru
 
 	# Cuerpo
 	cuerpo = evitar_extremo_stopword(primero_por_preferencia(
-					limpiar_por_texto(ents_ner['cuerpo'] if 'cuerpo' in keys_ner else [], 'cuerpo'),
-					ents_reglas['cuerpo'] if 'cuerpo' in keys_reglas else []
+					quitar_cuerpos_incorrectos(limpiar_por_texto(ents_ner['cuerpo'] if 'cuerpo' in keys_ner else [], 'cuerpo')),
+					quitar_cuerpos_incorrectos(ents_reglas['cuerpo']) if 'cuerpo' in keys_reglas else []
 					), stopwords).capitalize()
 
 	# Grupo
@@ -494,10 +547,9 @@ def evaluar_articulo(dia, ruta_info, ruta_texto, ruta_modelo_NER, ruta_regex, ru
 	puestos = obtener_puestos(
 					ents_reglas['puesto'] if 'puesto' in keys_reglas else [],
 					ents_ner['puesto'] if 'puesto' in keys_ner else [],
-					#, puestos_tablas
+					puestos_tablas,
 					stopwords
 					)
-
 
 	# Número de plazas totales.
 	num_plazas = obtener_num_plazas(
@@ -535,22 +587,50 @@ def evaluar_todos(dia, directorio_base, ruta_modelo_NER, ruta_regex, ruta_auxili
 	for filename in os.listdir(directorio_base / dia / 'apertura' / 'txt'):
 		if '_legible' not in filename:
 			ruta_texto = directorio_base / dia / 'apertura' / 'txt' / filename
-			ruta_info = directorio_base / dia / 'apertura' / 'info' / (filename.split('.')[0] + '.xml')
+			ruta_pdf = directorio_base / dia / 'apertura' / 'pdf' / (filename.replace('.txt', '.pdf'))
+			ruta_info = directorio_base / dia / 'apertura' / 'info' / (filename.replace('.txt', '.xml'))
 
-			evaluar_articulo(dia, ruta_info, ruta_texto, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
+			evaluar_articulo(dia, ruta_info, ruta_texto, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
+
+	for filename in os.listdir(directorio_base / dia / 'cierre' / 'info'):
+		ruta_info = directorio_base / dia / 'cierre' / 'info' / filename
+		ruta_pdf = directorio_base / dia / 'cierre' / 'pdf' / (filename.replace('.xml', '.pdf'))
+		evaluar_tablas_cierre(ruta_info, ruta_pdf, ruta_auxiliar)
+
+# Evalúa únicamente el artículo del caso indicado, contando previamente
+# con una estructura definida.
+def evaluar_pruebas_aceptacion(caso):
+	ruta_modelo_NER = Path(r'C:\AragonOpenData\aragon-opendata\models\modelo_20201112_50')
+	ruta_regex = Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\regex.xml')
+	ruta_auxiliar = Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml')
+	ruta_casos = Path(r'C:\Users\opotrony\Desktop\Artículos de casos de prueba')
+
+	cwd = ruta_casos / ('Caso_' + caso)
+	for file in os.listdir(cwd):
+		if '.pdf' in file:
+			ruta_pdf = cwd / file
+		elif '.xml' in file and 'copia' not in file:
+			ruta_info = cwd / file
+		elif '.txt' in file:
+			ruta_txt = cwd / file
+
+	evaluar_articulo(ruta_pdf.name.split('_')[-2], ruta_info, ruta_txt, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
+
 
 def main():
 
-	if len(sys.argv) != 6:
+	if len(sys.argv) == 2:
+		evaluar_pruebas_aceptacion(sys.argv[1])
+	elif len(sys.argv) != 6:
 		print('Numero de parametros incorrecto.')
 		sys.exit()
-
-	dia = sys.argv[1]
-	directorio_base = Path(sys.argv[2])
-	ruta_modelo_NER = Path(sys.argv[3])
-	ruta_regex = Path(sys.argv[4])
-	ruta_auxiliar = Path(sys.argv[5])
-	evaluar_todos(dia, directorio_base, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
+	else:
+		dia = sys.argv[1]
+		directorio_base = Path(sys.argv[2])
+		ruta_modelo_NER = Path(sys.argv[3])
+		ruta_regex = Path(sys.argv[4])
+		ruta_auxiliar = Path(sys.argv[5])
+		evaluar_todos(dia, directorio_base, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
 
 if __name__ == "__main__":
 	main()

@@ -283,7 +283,7 @@ def ingesta_diaria_boe(dia, directorio_base):
 			if et_tag == 'fecha_disposicion':
 				SE = ET.SubElement(articulo, et_tag)
 				el = root_aux.find(et_text)
-				SE.text = '-' if el is None else el.text[-2:]+'/'+el.text[5:7]+'/'+el.text[:4]
+				SE.text = '-' if el is None else el.text[-2:]+'/'+el.text[4:6]+'/'+el.text[:4]
 			elif et_tag == 'id_orden':
 				if buscar_id_orden:
 					SE = ET.SubElement(articulo, et_tag)

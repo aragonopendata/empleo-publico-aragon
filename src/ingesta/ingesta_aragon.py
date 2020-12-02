@@ -86,11 +86,11 @@ def recuperar_strings(tipo, bops=False):
 def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 	diaSemana = list(calendar.day_name)[datetime.strptime(dia, '%Y%m%d').weekday()]
 	prefijo_url_html = "http://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERDOC&BASE=BZHT&DOCR="
-	sufijo_url_html = "&SEC=BUSQUEDA_AVANZADA&SORT=-PUBL&SEPARADOR=&%40PUBL-GE=" + dia + "&%40PUBL-LE=" + dia + "&NUMB=&RANG=&TITU-C=&\
-	FDIS-C=&TITU=&ORGA-C=&TEXT-C=&SECC-C=" + root_fc.find('./parametros_url/secc-c').text
-	url_sumarizado = "http://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERLST&BASE=BZHT&DOCS=1-100&SEC=OPENDATABOAXML&OUTPUTMODE=XML&\
-	SORT=-PUBL&SEPARADOR=&%40PUBL-GE=" + dia + "&%40PUBL-LE=" + dia + "&NUMB=&RANG=&TITU-C=&FDIS-C=&TITU=&\
-	ORGA-C=&TEXT-C=&SECC-C=" + root_fc.find('./parametros_url/secc-c').text
+	sufijo_url_html = "&SEC=BUSQUEDA_AVANZADA&SORT=-PUBL&SEPARADOR=&%40PUBL-GE=" + dia + "&%40PUBL-LE=" + dia + \
+	"&NUMB=&RANG=&TITU-C=&FDIS-C=&TITU=&ORGA-C=&TEXT-C=&SECC-C=" + root_fc.find('./parametros_url/secc-c').text
+	url_sumarizado = "http://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERLST&BASE=BZHT&DOCS=1-100&SEC=OPENDATABOAXML" + \
+	"&OUTPUTMODE=XML&SORT=-PUBL&SEPARADOR=&%40PUBL-GE=" + dia + "&%40PUBL-LE=" + dia + \
+	"&NUMB=&RANG=&TITU-C=&FDIS-C=&TITU=&ORGA-C=&TEXT-C=&SECC-C=" + root_fc.find('./parametros_url/secc-c').text
 	
 	# Preparar URLs si se quieren obtener de diferentes subsecciones
 	urls_sumarizados = []
@@ -112,7 +112,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 
 	strings_apertura = recuperar_strings('apertura')
 	strings_cierre = recuperar_strings('cierre')
-	strings_no_empleo = recuperar_strings('no_empleo', True)
+	strings_no_empleo = recuperar_strings('no_empleo', False)
 	strings_apertura_bops = recuperar_strings('apertura',True)
 	strings_cierre_bops = recuperar_strings('cierre',True)
 	strings_no_empleo_bops = recuperar_strings('no_empleo', True)
@@ -134,11 +134,12 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 		except:
 			msg = (
 				"\nFailed obtention: No se ha recuperado un fichero XML."
-				" El dia {dia} es {diaSemana} y el tipo es {tipo}."
+				" El dia {dia} es {diaSemana} y el tipo es {tipo}. Su URL es {url}"
 			).format(
 				dia=dia,
 				diaSemana=diaSemana,
-				tipo=tipo
+				tipo=tipo,
+				url = url_sumarizado
 			)
 			logger.exception(
 				msg
@@ -176,7 +177,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 				"\nFailed: Write {url} content"
 				" in {ruta_sumario}."
 			).format(
-				url=url,
+				url=url_sumarizado,
 				ruta_sumario=ruta_sumario
 			)
 			logger.exception(
@@ -206,30 +207,37 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 			# Realizar la división en aperturas y cierres. (Preferencia a aperturas en BOA, a cierres en BOPs por haber menos)
 			tit = item.find(root_fc.find('./etiquetas_xml/auxiliares/titulo').text).text
 			if tipo == 'BOA':
+				no_es_de_empleo = False
 				for cadena in strings_no_empleo:	# Si no es de empleo, no guardar artículo
 					if cadena in tit.lower():
-						continue
+						no_es_de_empleo = True
+						break
+				if no_es_de_empleo:
+					continue
 				es_apertura = False
 				es_cierre = False
-				for cadena in strings_apertura:
-					if cadena in tit.lower():
-						es_apertura = True
-						break
-				if es_apertura:			# Guardar en apertura
-					tipo_articulo = 'apertura'
+				if 'por la que se deja sin efecto' in tit.lower():
+					tipo_articulo = 'cierre'
 				else:
-					for cadena in strings_cierre:
+					for cadena in strings_apertura:
 						if cadena in tit.lower():
-							es_cierre = True
+							es_apertura = True
 							break
-					if es_cierre:		# Guardar en cierre
-						tipo_articulo = 'cierre'
+					if es_apertura:			# Guardar en apertura
+						tipo_articulo = 'apertura'
 					else:
-						continue		# Saltar el artículo
+						for cadena in strings_cierre:
+							if cadena in tit.lower():
+								es_cierre = True
+								break
+						if es_cierre:		# Guardar en cierre
+							tipo_articulo = 'cierre'
+						else:
+							continue		# Saltar el artículo
 			else:
 				texto = item.find(root_fc.find('./etiquetas_xml/auxiliares/texto').text).text.lower()
 				if encontrar_cadenas(tit.lower(), strings_no_empleo_bops) or encontrar_cadenas(texto.lower(), strings_no_empleo_bops) or \
-				   encontrar_cadenas(tit.lower(), strings_no_empleo) or encontrar_cadenas(texto.lower(), strings_no_empleo) > 2:
+				   encontrar_cadenas(tit.lower(), strings_no_empleo) or encontrar_cadenas(texto.lower(), strings_no_empleo) > 5:
 					# Evitar artículos que no sean ofertas de empleo
 					continue
 				num_encontrados = encontrar_cadenas(tit.lower(), strings_cierre_bops)
@@ -246,7 +254,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 						if num_encontrados:					# Si encuentra algún cierre en el primer tercio, guardar en cierre
 							tipo_articulo = 'cierre'
 						else:
-							num_encontrados = encontrar_cadenas(texto, strings_apertura_bops)
+							num_encontrados = encontrar_cadenas(texto, strings_apertura_bops) + encontrar_cadenas(tit, strings_apertura_bops)
 							if num_encontrados > 1:			# Si encuentra más de un indicativo de empleo en el texto, guardar en cierre
 								tipo_articulo = 'apertura'
 							else:
@@ -282,7 +290,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 					msg = (
 						"\nFailed: Write {path}"
 					).format(
-						path=ruta_fichero
+						path=str(directorio_base / dia / tipo_articulo / formato / nombre_fichero_f)
 					)
 					logger.exception(
 						msg
@@ -308,7 +316,15 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 			for et_tag, et_text in etiquetas:
 				SE = ET.SubElement(articulo, et_tag)
 				el = item.find(et_text)
-				SE.text = el.text if el is not None else '-'
+				if et_tag == 'titulo':
+					SE.text = el.text.replace('\n',' ') if el is not None else '-'
+				elif et_tag == 'rango' or et_tag == 'organo_convocante':
+					if el is None or el.text is None or el.text == '':
+						SE.text = '-'
+					else:
+						SE.text = el.text.capitalize()
+				else:
+					SE.text = el.text if el is not None else '-'
 
 			if 'uri_eli' not in [e[0] for e in etiquetas]:
 				SE = ET.SubElement(articulo, 'uri_eli')

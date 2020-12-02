@@ -109,7 +109,7 @@ def obtener_campos_reglas(dia, ruta_info, ruta_texto, ruta_regex):
 	hay_id_orden = root_info.find('./articulo/id_orden') is not None
 	hay_f_disp = root_info.find('./articulo/fecha_disposicion') is not None
 	rango = root_info.find('./articulo/rango')
-	hay_rango = rango is not None and rango.text != '-'
+	hay_rango = rango is not None and rango.text is not None and rango. text != '-'
 	if hay_rango:
 		rango = rango.text.replace('ó', 'o').replace('Ó','O')
 

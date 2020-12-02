@@ -80,15 +80,18 @@ def conversion_a_texto(directorio_base, ruta_auxiliar, legible=False):
 			
 
 def main():
-	if len(sys.argv) != 4:
+	if len(sys.argv) == 2:
+		directorio_base = Path(sys.argv[1])
+		ruta_auxiliar = Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml')
+		conversion_a_texto(directorio_base, ruta_auxiliar, False)
+	elif len(sys.argv) != 4:
 		print('Numero de parametros incorrecto.')
 		sys.exit()
-
-	directorio_base = Path(sys.argv[1])
-	ruta_auxiliar = Path(sys.argv[2])
-	legible = sys.argv[3].lower() in ['true', 't', 'verdadero']
-
-	conversion_a_texto(directorio_base, ruta_auxiliar, legible)
+	else:
+		directorio_base = Path(sys.argv[1])
+		ruta_auxiliar = Path(sys.argv[2])
+		legible = sys.argv[3].lower() in ['true', 't', 'verdadero']
+		conversion_a_texto(directorio_base, ruta_auxiliar, legible)
 
 if __name__ == "__main__":
 	main()
