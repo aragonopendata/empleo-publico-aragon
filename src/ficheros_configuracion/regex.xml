@@ -12,7 +12,7 @@
 			<plazo>
 				<num_dias>([a-zA-Z]+|[0-9]+|[a-zA-Z]+ y [a-zA-Z]+)( \([0-9]+\))?</num_dias>
 				<tipo_dias> (días|DÍAS|día|DÍA|meses|MESES|mes|MES)( hábiles| HÁBILES| naturales| NATURALES| hábil| HÁBIL| natural| NATURAL)?</tipo_dias>
-				<contexto_1>\,? [a-zá ]+ (del|desde( el)?) </contexto_1>
+				<contexto_1>\,? [a-zá ]+ (del|desde( el)?|de) </contexto_1>
 				<dia_inicio>(día siguiente|día|siguiente|la)</dia_inicio>
 				<contexto_2>[a-z ]+publicación</contexto_2>
 			</plazo>

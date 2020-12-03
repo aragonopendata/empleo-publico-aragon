@@ -38,7 +38,8 @@ def encontrar_cadenas(texto, strings):
 
 # Devuelve el elemento root del fichero de configuración correspondiente a tipo_boletin
 def recuperar_fichero_configuracion(tipo_boletin):
-	ruta_fichero_conf = Path('../ficheros_configuracion/' + tipo_boletin + '_conf.xml')
+	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fichero_conf = ruta_fcs / (tipo_boletin + '_conf.xml')
 	try:
 		with open(ruta_fichero_conf, 'rb') as file:
 			tree = ET.parse(file)
@@ -57,7 +58,8 @@ def recuperar_fichero_configuracion(tipo_boletin):
 
 # Recuperar las strings de apertura/cierre del fichero auxiliar
 def recuperar_strings(tipo, bops=False):
-	ruta_fichero_aux = Path('../ficheros_configuracion/auxiliar.xml')
+	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fichero_aux = ruta_fcs / 'auxiliar.xml'
 	try:
 		with open(ruta_fichero_aux, 'rb') as file:
 			tree_fa = ET.parse(file)

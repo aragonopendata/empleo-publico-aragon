@@ -17,6 +17,7 @@ from xml.etree import ElementTree as ET
 
 import ingesta_boe
 import ingesta_aragon
+import ingesta_extra
 
 logger = logging.getLogger('ingesta')
 logging.basicConfig()
@@ -27,8 +28,8 @@ ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
 
 # Devuelve el elemento root del fichero de configuración correspondiente a tipo_boletin
-def recuperar_fichero_configuracion(tipo_boletin):
-	ruta_fichero_conf = Path('../ficheros_configuracion/' + tipo_boletin + '_conf.xml')
+def recuperar_fichero_configuracion(ruta_fcs, tipo_boletin):
+	ruta_fichero_conf = ruta_fcs / (tipo_boletin + '_conf.xml')
 	try:
 		with open(ruta_fichero_conf, 'rb') as file:
 			tree = ET.parse(file)
@@ -63,7 +64,8 @@ def ingesta_diaria(dia, directorio_base):
 		)
 
 	# Saber que formatos, mediante el fichero de configuración del BOE
-	ruta_fichero_conf = Path('../ficheros_configuracion/BOE_conf.xml')
+	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fichero_conf = ruta_fcs / 'BOE_conf.xml'
 	try:
 		with open(ruta_fichero_conf, 'rb') as file:
 			tree_fc = ET.parse(file)
@@ -136,7 +138,6 @@ def ingesta_diaria(dia, directorio_base):
 			)
 
 	# Comprobar de qué boletines se tienen ficheros de configuración
-	ruta_fcs = Path('../ficheros_configuracion/')
 	boletines = []
 	for x in os.listdir(ruta_fcs):
 		if x.endswith('_conf.xml'):
@@ -151,7 +152,7 @@ def ingesta_diaria(dia, directorio_base):
 				logger.exception(msg)
 		elif tipo_boletin in ['BOA', 'BOPH', 'BOPZ', 'BOPT']:	# Realizar la ingesta de boletines provinciales aragoneses
 			try:
-				ingesta_aragon.ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo_boletin, recuperar_fichero_configuracion(tipo_boletin))
+				ingesta_aragon.ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo_boletin, recuperar_fichero_configuracion(ruta_fcs, tipo_boletin))
 			except:
 				msg = ("\nFailed: ingesta_" + tipo_boletin)
 				logger.exception(msg)

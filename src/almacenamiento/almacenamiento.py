@@ -23,12 +23,16 @@ from time import strptime
 
 
 logger = logging.getLogger('almacenamiento')
-logging.basicConfig()
+logger_info = logging.getLogger('almacenamiento_info')
 
 # create console handler with a higher log level
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+
+fh = logging.FileHandler('articulos_no_insertados.log')
+fh.setLevel(logging.INFO)
+logger_info.addHandler(fh)
 
 cambio_diaSemana = {
 	'monday': 'Lunes',
@@ -242,7 +246,7 @@ def obtener_puestos(root):
 
 
 # Almacena los datos del fichero XML cuya raíz se ha pasado como parámetro.
-def almacenar(root, root_auxiliar, conn):
+def almacenar(root, root_auxiliar, conn, filename):
 	num_min_campos = int(root_auxiliar.find('./num_min_campos').text)
 
 	cursor = conn.cursor()
@@ -309,38 +313,59 @@ def almacenar(root, root_auxiliar, conn):
 		insertar_oferta(cursor, estado, enlace_cierre, id_convocatoria, ids_puestos)
 		print()
 		conn.commit()
+	else:
+		logger_info.info(filename.split('.')[0])
+
 	cursor.close()
+
+# Almacenar lo del fichero indicado según el caso indicado.
+def almacenar_pruebas_aceptacion(caso):
+	ruta_auxiliar = Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml')
+	ruta_casos = Path(r'C:\Users\opotrony\Desktop\Artículos de casos de prueba')
+
+	cwd = ruta_casos / ('Caso_' + caso)
+	for file in os.listdir(cwd):
+		if '.xml' in file and 'copia' not in file:
+			ruta_info = cwd / file
+
+	conn = psycopg2.connect(dbname='empleo_publico_aragon', user='postgres', password='Postgres1',
+								host='localhost', port=5432)
+	almacenar(obtener_root_fichero(ruta_info), obtener_root_fichero(ruta_auxiliar), conn, file.split('.')[0])
+	conn.close()
 
 # Almacena los datos de todos los ficheros de info del directorio y día pasados.
 def almacenar_todos(dia, directorio_base, ruta_auxiliar, conn):
 	for filename in os.listdir(directorio_base / dia / 'apertura' / 'info'):
+		print(filename)
 		ruta_info = directorio_base / dia / 'apertura' / 'info' / filename
 
-		almacenar(obtener_root_fichero(ruta_info), obtener_root_fichero(ruta_auxiliar), conn)
+		almacenar(obtener_root_fichero(ruta_info),
+				  obtener_root_fichero(ruta_auxiliar), conn, filename)
 
 
 def main():
-	if len(sys.argv) != 9:
+	if len(sys.argv) == 2:
+		almacenar_pruebas_aceptacion(sys.argv[1])
+	elif len(sys.argv) != 9:
 		print('Numero de parametros incorrecto.')
-		sys.exit()
+	else:
+		dia = sys.argv[1]
+		directorio_base = Path(sys.argv[2])
+		ruta_auxiliar = Path(sys.argv[3])
 
-	dia = sys.argv[1]
-	directorio_base = Path(sys.argv[2])
-	ruta_auxiliar = Path(sys.argv[3])
+		# Parámetros conexión Postgres
+		PSQL_DB = sys.argv[4]
+		PSQL_HOST = sys.argv[5]
+		PSQL_PORT = sys.argv[6]
+		PSQL_USER = sys.argv[7]
+		PSQL_PASS = sys.argv[8]
 
-	# Parámetros conexión Postgres
-	PSQL_DB = sys.argv[4]
-	PSQL_HOST = sys.argv[5]
-	PSQL_PORT = sys.argv[6]
-	PSQL_USER = sys.argv[7]
-	PSQL_PASS = sys.argv[8]
+		# Crear conexión Postgres
+		conn = psycopg2.connect(dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASS,
+								host=PSQL_HOST, port=PSQL_PORT)
 
-	# Crear conexión Postgres
-	conn = psycopg2.connect(dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASS,
-							host=PSQL_HOST, port=PSQL_PORT)
-
-	almacenar_todos(dia, directorio_base, ruta_auxiliar, conn)
-	conn.close()
+		almacenar_todos(dia, directorio_base, ruta_auxiliar, conn)
+		conn.close()
 
 
 if __name__ == "__main__":

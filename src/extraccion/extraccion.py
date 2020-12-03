@@ -253,7 +253,7 @@ def obtener_num_plazas(tit_reg, tex_reg, tex_ner, num_puestos):
 			p = limpiar_texto_plazas(p)
 			if p != '-': return p
 
-	if len(tex_reg) + len(tex_ner) == 0: return '-'
+	if len(tex_reg) + len(tex_ner) == 0: return num_puestos if num_puestos else '-'
 
 	# Limpiar todas las ocurrencias encontradas
 	lista = []
@@ -267,12 +267,14 @@ def obtener_num_plazas(tit_reg, tex_reg, tex_ner, num_puestos):
 
 	# Devolver el mayor número encontrado, si es mayor o igual que el número de puestos.
 	if lista: return lista[0] if lista[0] >= num_puestos else num_puestos
-	else: return '-'
+	else: return num_puestos if num_puestos else '-'
 
 # Devuelve una lista con stopwords en español, leída del fichero ../ficheros_configuracion/stopwords.txt
 def leer_stopwords():
 	out = []
-	with open(Path('../ficheros_configuracion/stopwords.txt'), encoding='utf-8') as file:
+	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+    ruta_fichero_stopwords = ruta_fcs / 'stopwords.txt'
+	with open(ruta_fichero_stopwords, encoding='utf-8') as file:
 		for line in file:
 			out.append(line.rstrip('\n'))
 	return out
@@ -295,7 +297,7 @@ def quitar_escalas_incorrectas(lista):
 
 # Quita cuerpos incorrectos que ha podido coger el ner
 def quitar_cuerpos_incorrectos(lista):
-	cortas_correctas = ['de', 'y']
+	cortas_correctas = ['del', 'de', 'la', 'y']
 	out = []
 	for e in lista:
 		meter = True
@@ -600,7 +602,7 @@ def evaluar_todos(dia, directorio_base, ruta_modelo_NER, ruta_regex, ruta_auxili
 # Evalúa únicamente el artículo del caso indicado, contando previamente
 # con una estructura definida.
 def evaluar_pruebas_aceptacion(caso):
-	ruta_modelo_NER = Path(r'C:\AragonOpenData\aragon-opendata\models\modelo_20201112_50')
+	ruta_modelo_NER = Path(r'C:\AragonOpenData\aragon-opendata\models\modelo_ner')
 	ruta_regex = Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\regex.xml')
 	ruta_auxiliar = Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml')
 	ruta_casos = Path(r'C:\Users\opotrony\Desktop\Artículos de casos de prueba')

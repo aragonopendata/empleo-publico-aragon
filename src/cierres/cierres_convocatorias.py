@@ -59,8 +59,11 @@ def len_puesto(tupla):
 def obtener_puestos(root):
 	out = []
 	aux = root.find('./articulo/puestos')
-	for item in aux.iterfind('./puesto'):
-		out.append(item.text.lower() if item.text != '-' else None)
+
+	if aux is not None:
+		for item in aux.iterfind('./puesto'):
+			out.append(item.text.lower() if item.text != '-' else None)
+
 	return out
 
 # Identificar, mediante reglas, la fecha de disposición de la oferta que se cerraría.
@@ -194,6 +197,9 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 	enlace_cierre = root_info.find('./articulo/enlace_convocatoria').text
 	texto = ''
 
+	titulo = root_info.find('./articulo/titulo').text
+	terminos_vaciar = ['desiertas', 'desierta', 'dejar sin efecto']
+
 	# Obtener, del PostgreSQL, las ofertas abiertas cuya fuente, órgano convocante y fecha de disposición coincidan.
 	# De estas ofertas, obtener los puestos ofertados en cada una de ellas (su denominación)
 	fecha_disposicion = obtener_fecha_disposicion_oferta(
@@ -204,11 +210,37 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 	id_fecha_disposicion = fecha_disposicion.split('/')
 	id_fecha_disposicion.reverse()
 	id_fecha_disposicion = ''.join(id_fecha_disposicion)
-
+	
+	print(info_filepath)
 	print(f'Tipo de boletín: {tipo_boletin}')
 	print(f'Órgano convocante: {organo}')
 	print(f'Fecha de disposición: {id_fecha_disposicion}')
 
+	if any([termino in titulo for termino in terminos_vaciar]):
+		print('Convocatoria desierta')
+		query = ('SELECT c.id '
+				 'FROM convocatoria c, oferta o '
+				 'WHERE c.fuente = %s '
+				 	'AND c.organo_convocante = %s '
+					'AND c.id_fecha_disposicion = %s '
+					'AND c.id = o.id_convocatoria '
+					'AND o.estado = %s;')
+		cursor.execute(query, (tipo_boletin, organo, id_fecha_disposicion,
+							   'Abierta'))
+		
+		id_convocatoria = cursor.fetchone()
+		if id_convocatoria is None:
+			return
+		print(f'Convocatoria: {id_convocatoria}')
+
+		sql = ('UPDATE oferta '
+			   'SET estado = %s, enlace_cierre = %s '
+			   'WHERE id_convocatoria = %s;')
+		cursor.execute(sql, ('Cerrada', enlace_cierre, id_convocatoria[0]))
+		conn.commit()
+
+		return
+	
 	query = ('SELECT oo.id, p.denominacion '
 			 'FROM puesto p '
 			 'INNER JOIN ( '
@@ -220,10 +252,10 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 					'WHERE c.fuente = %s '
 						'AND c.organo_convocante = %s '
 						'AND c.id_fecha_disposicion = %s '
-					') AS cc '
+				') AS cc '
 			 	'ON o.id_convocatoria = cc.id '
 			 	'WHERE o.estado = %s '
-			 	') AS oo '
+			 ') AS oo '
 			 'ON p.id = oo.id_puesto;')
 	cursor.execute(query, (tipo_boletin, organo, id_fecha_disposicion,
 						   'Abierta'))
