@@ -30,7 +30,7 @@ locale.setlocale(locale.LC_ALL, 'es_ES')
 
 # Recuperar las strings de apertura/cierre del fichero auxiliar
 def recuperar_strings(tipo):
-	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fcs = Path(__file__).absolute().parent.parent / 'ficheros_configuracion'
 	ruta_fichero_aux = ruta_fcs / 'auxiliar.xml'
 	try:
 		with open(ruta_fichero_aux, 'rb') as file:
@@ -56,7 +56,7 @@ def recuperar_strings(tipo):
 
 def ingesta_diaria_extra(dia, directorio_base, tipo_boletin):
 	# Recuperar el fichero de configuración
-	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fcs = Path(__file__).absolute().parent.parent / 'ficheros_configuracion'
 	ruta_fichero_conf = ruta_fcs / (tipo_boletin + '_conf.xml')
 	try:
 		with open(ruta_fichero_conf, 'rb') as file:

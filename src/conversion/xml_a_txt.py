@@ -28,8 +28,8 @@ MAX_CHARS_PER_LINE = 500
 
 def from_xml_to_text(input_filepath, output_filepath, tipo_boletin, legible=False):
 	# Recuperar fichero de configuración
-	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
-    ruta_fichero_conf = ruta_fcs / (tipo_boletin + '_conf.xml')
+	ruta_fcs = pathlib.Path(__file__).absolute().parent.parent / 'ficheros_configuracion'
+	ruta_fichero_conf = ruta_fcs / (tipo_boletin + '_conf.xml')
 	try:
 		with open(ruta_fichero_conf, 'rb') as file:
 			tree_fc = ET.parse(file)

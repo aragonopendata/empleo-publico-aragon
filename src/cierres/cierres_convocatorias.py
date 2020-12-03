@@ -318,6 +318,24 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 
 	conn.commit()
 
+# Comprueba cierres del caso indicado según el caso indicado.
+def comprobar_cierres_pruebas_aceptacion(caso):
+	ruta_auxiliar = pathlib.Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml')
+	ruta_regex = pathlib.Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\regex.xml')
+	ruta_casos = pathlib.Path(r'C:\Users\opotrony\Desktop\Artículos de casos de prueba')
+
+	cwd = ruta_casos / ('Caso_' + caso)
+	for file in os.listdir(cwd):
+		if '.xml' in file and 'copia' not in file:
+			ruta_info = cwd / file
+		elif '.txt' in file:
+			ruta_txt = cwd / file
+
+	conn = psycopg2.connect(dbname='empleo_publico_aragon', user='postgres', password='Postgres1',
+								host='localhost', port=5432)
+	cursor = conn.cursor()
+	comprobar_cierre(ruta_txt, ruta_info, ruta_regex, ruta_auxiliar, conn, cursor)
+	conn.close()
 
 def comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex,
 								 ruta_fichero_aux, conn):
@@ -333,30 +351,32 @@ def comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex,
 
 
 def main():
-	if len(sys.argv) != 10:
+	if len(sys.argv) == 2:
+		comprobar_cierres_pruebas_aceptacion(sys.argv[1])
+	elif len(sys.argv) != 10:
 		print('Numero de parametros incorrecto.')
 		sys.exit()
+	else:
+		directorio_base = pathlib.Path(sys.argv[1])
+		dia = sys.argv[2]
+		ruta_fichero_regex = pathlib.Path(sys.argv[3])
+		ruta_fichero_aux = pathlib.Path(sys.argv[4])
+		
+		# Parámetros conexión Postgres
+		db_name = sys.argv[5]
+		db_host = sys.argv[6]
+		db_port = sys.argv[7]
+		db_user = sys.argv[8]
+		db_password = sys.argv[9]
 
-	directorio_base = pathlib.Path(sys.argv[1])
-	dia = sys.argv[2]
-	ruta_fichero_regex = pathlib.Path(sys.argv[3])
-	ruta_fichero_aux = pathlib.Path(sys.argv[4])
-	
-	# Parámetros conexión Postgres
-	db_name = sys.argv[5]
-	db_host = sys.argv[6]
-	db_port = sys.argv[7]
-	db_user = sys.argv[8]
-	db_password = sys.argv[9]
+		# Crear conexión Postgres
+		conn = psycopg2.connect(dbname=db_name, user=db_user, password=db_password,
+								host=db_host, port=db_port)
 
-	# Crear conexión Postgres
-	conn = psycopg2.connect(dbname=db_name, user=db_user, password=db_password,
-							host=db_host, port=db_port)
-
-	comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex,
-								 ruta_fichero_aux, conn)
-	
-	conn.close()
+		comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex,
+									 ruta_fichero_aux, conn)
+		
+		conn.close()
 
 
 if __name__ == "__main__":

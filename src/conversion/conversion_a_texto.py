@@ -82,7 +82,7 @@ def conversion_a_texto(directorio_base, ruta_auxiliar, legible=False):
 def main():
 	if len(sys.argv) == 2:
 		directorio_base = Path(sys.argv[1])
-		ruta_auxiliar = Path(r'C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml')
+		ruta_auxiliar = Path(__file__).absolute().parent.parent / 'ficheros_configuracion' / 'auxiliar.xml'
 		conversion_a_texto(directorio_base, ruta_auxiliar, False)
 	elif len(sys.argv) != 4:
 		print('Numero de parametros incorrecto.')

@@ -32,7 +32,7 @@ locale.setlocale(locale.LC_ALL, 'es_ES')
 
 # Recuperar las strings de apertura/cierre del fichero auxiliar
 def recuperar_strings(tipo):
-	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fcs = Path(__file__).absolute().parent.parent / 'ficheros_configuracion'
 	ruta_fichero_aux = ruta_fcs / 'auxiliar.xml'
 	try:
 		with open(ruta_fichero_aux, 'rb') as file:
@@ -95,7 +95,7 @@ def rotar_pdf(path_in, path_out):
 
 
 def ingesta_diaria_boe(dia, directorio_base):
-	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fcs = Path(__file__).absolute().parent.parent / 'ficheros_configuracion'
 	ruta_fichero_conf = ruta_fcs / 'BOE_conf.xml'
 	try:
 		with open(ruta_fichero_conf, 'rb') as file:

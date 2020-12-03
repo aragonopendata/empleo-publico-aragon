@@ -157,6 +157,7 @@ def obtener_campos_reglas(dia, ruta_info, ruta_texto, ruta_regex):
 			dic_regex[campo] = r"(" + terminos_a_regex(terminos_ambas + terminos_libre + terminos_interna) + r")"
 		elif campo == 'fecha_disposicion':
 			if hay_rango:
+				if rango.lower() == 'decreto': rango = 'orden'	# Misma estructura. Decreto a veces para nombramientos.
 				dic_regex[campo] = leer_regla(root_regex, campo+'/'+rango.lower())
 			else:
 				dic_regex[campo] = leer_regla(root_regex, campo+'/resolucion')

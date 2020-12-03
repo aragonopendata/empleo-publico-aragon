@@ -23,16 +23,11 @@ from time import strptime
 
 
 logger = logging.getLogger('almacenamiento')
-logger_info = logging.getLogger('almacenamiento_info')
 
 # create console handler with a higher log level
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
-
-fh = logging.FileHandler('articulos_no_insertados.log')
-fh.setLevel(logging.INFO)
-logger_info.addHandler(fh)
 
 cambio_diaSemana = {
 	'monday': 'Lunes',
@@ -314,7 +309,8 @@ def almacenar(root, root_auxiliar, conn, filename):
 		print()
 		conn.commit()
 	else:
-		logger_info.info(filename.split('.')[0])
+		with open('articulos_no_insertados.log','a') as file:
+			file.write(filename.split('.')[0] + '\n')
 
 	cursor.close()
 

@@ -5,7 +5,7 @@
 # Invocación:
 #	python extraccion.py dia_aaaammdd directorio_base ruta_modelo_NER ruta_regex ruta_auxiliar
 # Ejemplo invocación:
-#	python extraccion.py 20201001 C:\corpus\ C:\AragonOpenData\aragon-opendata\models\modelo_20201112_50 
+#	python extraccion.py 20201001 C:\corpus\ C:\AragonOpenData\aragon-opendata\tools\extraccion\modelo_ner\
 #		C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\regex.xml
 #		C:\AragonOpenData\aragon-opendata\tools\ficheros_configuracion\auxiliar.xml
 
@@ -180,24 +180,27 @@ def obtener_fechas_presentacion(root_regex, plazo, fpub):
 	regex_dia_inicio = root_regex.find('./reglas/apertura/plazo/dia_inicio').text
 
 	# Cifra de días.
-	match = re.search(regex_tipo_dias+regex_contexto_1+regex_dia_inicio, plazo)
-	dias = to_number(plazo[:match.span()[0]].split('(')[0])
-	plazo = plazo[match.span()[0]:]
+	try:
+		match = re.search(regex_tipo_dias+regex_contexto_1+regex_dia_inicio, plazo)
+		dias = to_number(plazo[:match.span()[0]].split('(')[0])
+		plazo = plazo[match.span()[0]:]
 
-	# Saber si habla de días o meses, y si son hábiles o naturales.
-	match = re.match(regex_tipo_dias, plazo)
-	split = plazo[match.span()[0]:match.span()[1]].split(' ')
-	if 'mes' in split[1]:
-		dias *= 30
-	# Se han encontrado 'naturales', 'hábiles' o nada. Si no hay nada, se entienden como naturales.
-	es_habil = len(split) > 2 and ('hábil' in split[2] or 'laborable' in split[2])
+		# Saber si habla de días o meses, y si son hábiles o naturales.
+		match = re.match(regex_tipo_dias, plazo)
+		split = plazo[match.span()[0]:match.span()[1]].split(' ')
+		if 'mes' in split[1]:
+			dias *= 30
+		# Se han encontrado 'naturales', 'hábiles' o nada. Si no hay nada, se entienden como naturales.
+		es_habil = len(split) > 2 and ('hábil' in split[2] or 'laborable' in split[2])
 
-	# Averiguar si se cuenta a partir del día de publicación o el siguiente.
-	plazo = plazo[match.span()[1]:]
-	match = re.match(regex_contexto_1, plazo)
-	plazo = plazo[match.span()[1]:]
-	match = re.match(regex_dia_inicio, plazo)
-	es_dia_siguiente = 'siguiente' in plazo[:match.span()[1]]
+		# Averiguar si se cuenta a partir del día de publicación o el siguiente.
+		plazo = plazo[match.span()[1]:]
+		match = re.match(regex_contexto_1, plazo)
+		plazo = plazo[match.span()[1]:]
+		match = re.match(regex_dia_inicio, plazo)
+		es_dia_siguiente = 'siguiente' in plazo[:match.span()[1]]
+	except:
+		return '-', '-'
 
 	# Calcular fecha de inicio
 	inicio = date(int(fpub[6:]), int(fpub[3:5]), int(fpub[:2]))			# fpub viene con formato 'dd/mm/yyyy'
@@ -272,8 +275,8 @@ def obtener_num_plazas(tit_reg, tex_reg, tex_ner, num_puestos):
 # Devuelve una lista con stopwords en español, leída del fichero ../ficheros_configuracion/stopwords.txt
 def leer_stopwords():
 	out = []
-	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
-    ruta_fichero_stopwords = ruta_fcs / 'stopwords.txt'
+	ruta_fcs = Path(__file__).absolute().parent.parent / 'ficheros_configuracion'
+	ruta_fichero_stopwords = ruta_fcs / 'stopwords.txt'
 	with open(ruta_fichero_stopwords, encoding='utf-8') as file:
 		for line in file:
 			out.append(line.rstrip('\n'))
@@ -427,6 +430,7 @@ def escribir_en_info(SE, campo, texto):
 # Devuelve el subelemento pasado tras incorporarle los puestos indicados.
 def escribir_puestos_en_info(SE, puestos):
 	if puestos == '-': return escribir_en_info(SE, 'puestos', puestos)
+	puestos = [p.lower().replace('código de puesto','').rstrip(' \t\n.:,–-(0123456789)').lstrip(' \t\n.:,)-').capitalize() for p in puestos]
 	
 	# Etiqueta exterior 'puestos'
 	puestos_ET = ET.SubElement(SE, 'puestos')
@@ -439,16 +443,25 @@ def escribir_puestos_en_info(SE, puestos):
 	return SE
 
 # Añade los puestos leídos de tablas en el fichero pdf pasado al fichero de info
-def evaluar_tablas_cierre(ruta_info, ruta_pdf, ruta_auxiliar):
+def evaluar_tablas_cierre(dia, ruta_info, ruta_texto, ruta_pdf, ruta_regex, ruta_auxiliar, ruta_modelo_NER):
 	root_info = obtener_root_fichero(ruta_info)
 	stopwords = leer_stopwords()
 
 	# Obtener puestos de las tablas
 	puestos_tablas = quitar_puestos_con_inicio_stopword(extraccion_tablas.obtener_puestos(ruta_pdf, ruta_auxiliar), stopwords)
+	ents_reglas = extraccion_reglas.obtener_campos_reglas(dia, ruta_info, ruta_texto, ruta_regex)
+	ents_ner = extraccion_ner.obtener_campos_ner(ruta_texto, ruta_modelo_NER)
+
+	puestos = obtener_puestos(
+					ents_reglas['puesto'] if 'puesto' in ents_reglas.keys() else [],
+					ents_ner['puesto'] if 'puesto' in ents_ner.keys() else [],
+					puestos_tablas,
+					stopwords
+					)
 
 	# Incorporar los campos al árbol de info
 	articulo = root_info.find('articulo')
-	articulo = escribir_puestos_en_info(articulo, puestos_tablas)
+	articulo = escribir_puestos_en_info(articulo, puestos)
 
 	# Escribir fichero de info
 	with open(ruta_info,'wb') as file:
@@ -597,7 +610,9 @@ def evaluar_todos(dia, directorio_base, ruta_modelo_NER, ruta_regex, ruta_auxili
 	for filename in os.listdir(directorio_base / dia / 'cierre' / 'info'):
 		ruta_info = directorio_base / dia / 'cierre' / 'info' / filename
 		ruta_pdf = directorio_base / dia / 'cierre' / 'pdf' / (filename.replace('.xml', '.pdf'))
-		evaluar_tablas_cierre(ruta_info, ruta_pdf, ruta_auxiliar)
+		ruta_pdf = directorio_base / dia / 'cierre' / 'pdf' / (filename.replace('.xml', '.txt'))
+		evaluar_tablas_cierre(dia, ruta_info, ruta_texto, ruta_pdf, ruta_regex, ruta_auxiliar, ruta_modelo_NER)
+		
 
 # Evalúa únicamente el artículo del caso indicado, contando previamente
 # con una estructura definida.
@@ -615,8 +630,11 @@ def evaluar_pruebas_aceptacion(caso):
 			ruta_info = cwd / file
 		elif '.txt' in file:
 			ruta_txt = cwd / file
-
-	evaluar_articulo(ruta_pdf.name.split('_')[-2], ruta_info, ruta_txt, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
+	if 'cierre' in caso.lower():
+		dia = file.split('_')[1]
+		evaluar_tablas_cierre(dia, ruta_info, ruta_txt, ruta_pdf, ruta_regex, ruta_auxiliar, ruta_modelo_NER)
+	else:
+		evaluar_articulo(ruta_pdf.name.split('_')[-2], ruta_info, ruta_txt, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
 
 
 def main():

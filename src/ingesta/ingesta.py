@@ -64,7 +64,7 @@ def ingesta_diaria(dia, directorio_base):
 		)
 
 	# Saber que formatos, mediante el fichero de configuración del BOE
-	ruta_fcs = Path(__file__).parent.parent / 'ficheros_configuracion'
+	ruta_fcs = Path(__file__).absolute().parent.parent / 'ficheros_configuracion'
 	ruta_fichero_conf = ruta_fcs / 'BOE_conf.xml'
 	try:
 		with open(ruta_fichero_conf, 'rb') as file:
