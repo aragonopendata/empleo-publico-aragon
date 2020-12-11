@@ -1,5 +1,5 @@
 # Nombre: cierres_convocatorias.py
-# Autor: Oscar Potrony
+# Autor: Oscar Potrony / Eliot Díaz
 # Fecha: 17/11/2020
 # Descripción: Comprueba si el fichero pasado como parámetro cierra una oferta abierta, y en ese caso indica su cierre.
 # Invocación:
@@ -30,6 +30,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 locale.setlocale(locale.LC_ALL, 'es_ES')
 
@@ -157,14 +158,12 @@ def obtener_fecha_disposicion_oferta(txt_filepath, root_info,
 					anyo = str(anyo)
 				else:
 					anyo -= 1
-
 	elif split_match[0] == 'Orden':
 		anyo = split_match[1].split('/')[2].zfill(4)
 		dia = split_match[3].zfill(2)
-		mes = split_match[5]
-		
+		mes = split_match[5]	
 	else:
-		print('Encontrado algo que no es Orden ni Resolución.')
+		raise Exception
 
 	if mes.isnumeric():
 		mes = mes.zfill(2)
@@ -204,20 +203,15 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 	# De estas ofertas, obtener los puestos ofertados en cada una de ellas (su denominación)
 	fecha_disposicion = obtener_fecha_disposicion_oferta(
 		txt_filepath, root_info, ruta_fichero_regex, ruta_fichero_aux)
-	if fecha_disposicion == -1: return
-	print(fecha_disposicion)
+
+	if fecha_disposicion == -1:
+		return
 
 	id_fecha_disposicion = fecha_disposicion.split('/')
 	id_fecha_disposicion.reverse()
 	id_fecha_disposicion = ''.join(id_fecha_disposicion)
-	
-	print(info_filepath)
-	print(f'Tipo de boletín: {tipo_boletin}')
-	print(f'Órgano convocante: {organo}')
-	print(f'Fecha de disposición: {id_fecha_disposicion}')
 
 	if any([termino in titulo for termino in terminos_vaciar]):
-		print('Convocatoria desierta')
 		query = ('SELECT c.id '
 				 'FROM convocatoria c, oferta o '
 				 'WHERE c.fuente = %s '
@@ -231,7 +225,6 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 		id_convocatoria = cursor.fetchone()
 		if id_convocatoria is None:
 			return
-		print(f'Convocatoria: {id_convocatoria}')
 
 		sql = ('UPDATE oferta '
 			   'SET estado = %s, enlace_cierre = %s '
@@ -260,7 +253,6 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 	cursor.execute(query, (tipo_boletin, organo, id_fecha_disposicion,
 						   'Abierta'))
 	ofertas = cursor.fetchall()
-	print(ofertas)
 
 	# Para buscar primero los puestos más largos
 	ofertas.sort(key=len_puesto, reverse=True)
@@ -306,17 +298,21 @@ def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex,
 
 	# Se indica el cierre (o se cierra directamente aquí) de las ofertas cuyos puestos se han detectado.
 	# (Se entiende que los puestos aparecidos en un artículo de cierre aparecen para cerrarse)
+	existe_cierre = False
 	for i, cerrar in enumerate(cerrar_oferta):
-		print(i, cerrar)
 		if cerrar:
 			id_oferta = ofertas[i][0]
-			# TODO: Cerrar la oferta cuyo id es id_oferta o meter en nueva lista y devolver lista (y cerrar en otro sitio)
 			sql = ('UPDATE oferta '
 				   'SET estado = %s, enlace_cierre = %s '
 				   'WHERE id = %s;')
 			cursor.execute(sql, ('Cerrada', enlace_cierre, str(id_oferta)))
-
+			existe_cierre = True	
 	conn.commit()
+
+	if not existe_cierre:
+		with open('articulos_sin_cierres.log', 'a') as file:
+			file.write(f'{txt_filepath.parts[-1].split(".")[0]}\n')
+
 
 # Comprueba cierres del caso indicado según el caso indicado.
 def comprobar_cierres_pruebas_aceptacion(caso):
@@ -344,9 +340,15 @@ def comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex,
 		if '_legible' not in filename:
 			ruta_texto = directorio_base / dia / 'cierre' / 'txt' / filename
 			ruta_info = directorio_base / dia / 'cierre' / 'info' / (filename.replace('.txt', '.xml'))
-			comprobar_cierre(ruta_texto, ruta_info, ruta_fichero_regex,
-							 ruta_fichero_aux, conn, cursor)
-	
+
+			try:
+				comprobar_cierre(ruta_texto, ruta_info, ruta_fichero_regex,
+								 ruta_fichero_aux, conn, cursor)
+			except:
+				fichero_log = pathlib.Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+				with open(fichero_log, 'a') as file:
+					file.write(f'{filename.split(".")[0]} - CIERRES\n')
+
 	cursor.close()
 
 
@@ -370,8 +372,9 @@ def main():
 		db_password = sys.argv[9]
 
 		# Crear conexión Postgres
-		conn = psycopg2.connect(dbname=db_name, user=db_user, password=db_password,
-								host=db_host, port=db_port)
+		conn = psycopg2.connect(
+			dbname=db_name, user=db_user, password=db_password, host=db_host,
+			port=db_port)
 
 		comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex,
 									 ruta_fichero_aux, conn)

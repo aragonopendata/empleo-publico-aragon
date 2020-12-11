@@ -23,6 +23,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 MAX_CHARS_PER_LINE = 500
 

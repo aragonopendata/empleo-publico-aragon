@@ -22,6 +22,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 # Evalúa el modelo, devolviendo las entidades obtenidas y el documento del texto.
 def evaluate_model(

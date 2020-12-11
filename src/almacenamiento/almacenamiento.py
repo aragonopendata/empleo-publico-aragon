@@ -28,6 +28,7 @@ logger = logging.getLogger('almacenamiento')
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 cambio_diaSemana = {
 	'monday': 'Lunes',
@@ -45,21 +46,17 @@ def num_campos_detectados(lista):
 	return sum(e is not None for e in lista)
 
 def insertar_fecha(cursor, fecha_textual):
-	"""
-	docstring
-	"""
 	if fecha_textual is None:
 		return
 
 	id_fecha, dia, mes, año, dia_semana = obtener_att_fecha(fecha_textual)
-
 	try:
 		sql = ('INSERT INTO fecha(id, dia, mes, año, diasemana, textual) '
 			   'VALUES(%s, %s, %s, %s, %s, %s) '
 			   'ON CONFLICT DO NOTHING;')
 		cursor.execute(sql, (id_fecha, dia, mes, año, dia_semana, fecha_textual))
-	except (Exception, psycopg2.DatabaseError) as error:
-		print(error)
+	except psycopg2.DatabaseError:
+		return
 
 	return id_fecha
 
@@ -82,15 +79,12 @@ def hay_puesto(puesto, cursor):
 
 
 def insertar_puestos(cursor, denominaciones, cuerpo, escala, subescala):
-	"""
-	docstring
-	"""
 	puestos_iter = itertools.product(
 		denominaciones, [cuerpo], [escala], [subescala]) 
 
 	ids_puestos = []
-	try:
-		for puesto in puestos_iter:
+	for puesto in puestos_iter:
+		try:
 			id_puesto_existente = hay_puesto(puesto, cursor)
 			if not id_puesto_existente:
 				sql = ('INSERT INTO puesto(denominacion, cuerpo, escala, subescala) '
@@ -100,8 +94,8 @@ def insertar_puestos(cursor, denominaciones, cuerpo, escala, subescala):
 				ids_puestos.append(cursor.fetchone()[0])
 			else:
 				ids_puestos.append(id_puesto_existente)
-	except (Exception, psycopg2.DatabaseError) as error:
-		print(f'Error: {error}')
+		except psycopg2.DatabaseError:
+			continue
 
 	return ids_puestos
 
@@ -111,16 +105,14 @@ def insertar_convocatoria(cursor, organo_convocante, titulo, uri_eli, enlace,
 						  datos_contacto, num_plazas, id_fecha_publicacion, 
 						  id_fecha_disposicion, id_fecha_inicio_presentacion,
 						  id_fecha_fin_presentacion):
-	""" insert a new vendor into the vendors table """
-	
 	try:
-		sql = ('INSERT INTO convocatoria(organo_convocante, titulo, URI_ELI, '
-			   		'enlace, grupo, plazo, rango, id_orden, fuente, tipo, ' 
-			   		'datos_contacto, num_plazas, id_fecha_publicacion, '
-			   		'id_fecha_disposicion, id_fecha_inicio_presentacion, '
-			   		'id_fecha_fin_presentacion) '
+		sql = ('INSERT INTO convocatoria('
+					'organo_convocante, titulo, URI_ELI, enlace, grupo, plazo, '
+					'rango, id_orden, fuente, tipo, datos_contacto, '
+					'num_plazas, id_fecha_publicacion, id_fecha_disposicion, '
+					'id_fecha_inicio_presentacion, id_fecha_fin_presentacion) '
 			   'VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, '
-			   		'%s, %s) '
+			   		  '%s, %s) '
 			   'RETURNING id;')
 		cursor.execute(sql, (organo_convocante, titulo, uri_eli, enlace, grupo,
 							 plazo, rango, id_orden, fuente, tipo,
@@ -128,17 +120,14 @@ def insertar_convocatoria(cursor, organo_convocante, titulo, uri_eli, enlace,
 							 id_fecha_disposicion, id_fecha_inicio_presentacion,
 							 id_fecha_fin_presentacion))
 		id_convocatoria = cursor.fetchone()[0]
-	except (Exception, psycopg2.DatabaseError) as error:
-		print(error)
+	except psycopg2.DatabaseError:
+		return
 
 	return id_convocatoria
 
 
 def insertar_oferta(cursor, estado, enlace_cierre, id_convocatoria,
 					ids_puestos_lista):
-	"""
-	docstring
-	"""
 	ids_ofertas_lista = []
 	for id_puesto in ids_puestos_lista:
 		id_oferta = generar_id_oferta(cursor, id_convocatoria, id_puesto)
@@ -148,22 +137,26 @@ def insertar_oferta(cursor, estado, enlace_cierre, id_convocatoria,
 					 'FROM oferta '
 					 'WHERE id LIKE %s '
 					 'ORDER BY cast(SPLIT_PART(id, %s, 5) AS integer) DESC;')
-			cursor.execute(query, (f'{id_oferta}_%','_'))
+			cursor.execute(query, (f'{id_oferta}_%', '_'))
 			ultimo_id = cursor.fetchone()
-			if ultimo_id is None:
-				serial = 0
-			else:
-				serial = int(ultimo_id[0].split('_')[-1])
-			
-			id_oferta = f'{id_oferta}_{serial + 1}'
+		except psycopg2.DatabaseError:
+			continue
 
-			sql = ('INSERT INTO oferta(id, enlace_cierre, estado, id_convocatoria,'
-				   		'id_puesto) '
+		if ultimo_id is None:
+			serial = 0
+		else:
+			serial = int(ultimo_id[0].split('_')[-1])
+		
+		id_oferta = f'{id_oferta}_{serial + 1}'
+
+		try:
+			sql = ('INSERT INTO oferta(id, enlace_cierre, estado, '
+									  'id_convocatoria, id_puesto) '
 				   'VALUES(%s, %s, %s, %s, %s);')
 			cursor.execute(sql, (id_oferta, enlace_cierre, estado,
 								 id_convocatoria, id_puesto))
-		except (psycopg2.DatabaseError) as error:
-			print(error)
+		except psycopg2.DatabaseError:
+			continue
 
 		ids_ofertas_lista.append(id_oferta)
 
@@ -277,11 +270,14 @@ def almacenar(root, root_auxiliar, conn, filename):
 	enlace_cierre = None
 
 	# Solo guardar en la Base de datos si en el fichero de info se ha encontrado un nº mínimo de campos.
-	if num_campos_detectados([textual_pub, textual_disp, textual_ini, textual_fin, denominaciones, cuerpo,
-							 escala, subescala, fuente_datos, organo_convocante, enlace_convocatoria,
-							 titulo, uri_eli, rango, id_orden, grupo, tipo_convocatoria, datos_contacto,
-							 plazo, num_plazas]) >= num_min_campos:
+	campos_detectados = num_campos_detectados([
+		textual_pub, textual_disp, textual_ini, textual_fin, denominaciones,
+		cuerpo, escala, subescala, fuente_datos, organo_convocante,
+		enlace_convocatoria, titulo, uri_eli, rango, id_orden, grupo,
+		tipo_convocatoria, datos_contacto, plazo, num_plazas
+	])
 	
+	if campos_detectados >= num_min_campos:
 		# Inserción en la base de datos.
 		id_fecha_pub = insertar_fecha(cursor, textual_pub)
 		id_fecha_disp = insertar_fecha(cursor, textual_disp)
@@ -292,26 +288,42 @@ def almacenar(root, root_auxiliar, conn, filename):
 		if denominaciones is None or not denominaciones:
 			if escala is not None:
 				denominaciones = [escala]
+			elif cuerpo is not None:
+				denominaciones = [cuerpo]
 		elif denominaciones[0] is None:
 			if escala is not None:
 				denominaciones = [escala]
+			elif cuerpo is not None:
+				denominaciones = [cuerpo]
 
 		ids_puestos = insertar_puestos(
 			cursor, denominaciones, cuerpo, escala, subescala)
-		print(f'Puestos: {ids_puestos}')
 		
 		id_convocatoria = insertar_convocatoria(
-			cursor, organo_convocante, titulo, uri_eli, enlace_convocatoria, grupo,
-			plazo, rango, id_orden, fuente_datos, tipo_convocatoria, datos_contacto,
-			num_plazas, id_fecha_pub, id_fecha_disp, id_fecha_ini, id_fecha_fin)
+			cursor, organo_convocante, titulo, uri_eli, enlace_convocatoria,
+			grupo, plazo, rango, id_orden, fuente_datos, tipo_convocatoria,
+			datos_contacto, num_plazas, id_fecha_pub, id_fecha_disp,
+			id_fecha_ini, id_fecha_fin)
 
-		insertar_oferta(cursor, estado, enlace_cierre, id_convocatoria, ids_puestos)
-		print()
-		conn.commit()
+		insertar_oferta(cursor, estado, enlace_cierre, id_convocatoria,
+						ids_puestos)
 	else:
-		with open('articulos_no_insertados.log','a') as file:
-			file.write(filename.split('.')[0] + '\n')
+		nombre_articulo = filename.split('.')[0]
+		fecha_publicacion = datetime.strptime(textual_pub, '%d/%m/%Y')
 
+		with open('articulos_no_insertados.log','a') as file:
+			file.write(f'{nombre_articulo}\n')
+
+		try:
+			sql = ('INSERT INTO articulos_no_insertados(nombre, fecha, enlace, '
+						'num_campos_detectados) '
+				   'VALUES(%s, %s, %s, %s);')
+			cursor.execute(sql, (nombre_articulo, fecha_publicacion,
+								 enlace_convocatoria, campos_detectados))
+		except psycopg2.DatabaseError:
+			pass
+
+	conn.commit()
 	cursor.close()
 
 # Almacenar lo del fichero indicado según el caso indicado.
@@ -332,11 +344,14 @@ def almacenar_pruebas_aceptacion(caso):
 # Almacena los datos de todos los ficheros de info del directorio y día pasados.
 def almacenar_todos(dia, directorio_base, ruta_auxiliar, conn):
 	for filename in os.listdir(directorio_base / dia / 'apertura' / 'info'):
-		print(filename)
 		ruta_info = directorio_base / dia / 'apertura' / 'info' / filename
-
-		almacenar(obtener_root_fichero(ruta_info),
-				  obtener_root_fichero(ruta_auxiliar), conn, filename)
+		try:
+			almacenar(obtener_root_fichero(ruta_info),
+					  obtener_root_fichero(ruta_auxiliar), conn, filename)
+		except:
+			fichero_log = Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+			with open(fichero_log, 'a') as file:
+				file.write(f'{filename.split(".")[0]} - ALMACENAMIENTO\n')
 
 
 def main():
@@ -357,8 +372,9 @@ def main():
 		PSQL_PASS = sys.argv[8]
 
 		# Crear conexión Postgres
-		conn = psycopg2.connect(dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASS,
-								host=PSQL_HOST, port=PSQL_PORT)
+		conn = psycopg2.connect(
+			dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASS, host=PSQL_HOST,
+			port=PSQL_PORT)
 
 		almacenar_todos(dia, directorio_base, ruta_auxiliar, conn)
 		conn.close()

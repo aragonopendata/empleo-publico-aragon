@@ -26,6 +26,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 locale.setlocale(locale.LC_ALL, 'es_ES')
 
@@ -68,7 +69,7 @@ def recuperar_strings(tipo, bops=False):
 		msg = (
 			"\nFailed: Open {ruta_fichero_conf}"
 		).format(
-			ruta_fichero_conf=ruta_fichero_conf
+			ruta_fichero_conf=ruta_fichero_aux
 		)
 		logger.exception(
 			msg
@@ -118,7 +119,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 	strings_apertura_bops = recuperar_strings('apertura',True)
 	strings_cierre_bops = recuperar_strings('cierre',True)
 	strings_no_empleo_bops = recuperar_strings('no_empleo', True)
-	indice = 1	# Número de secuencia dado al artículo
+	indice = 0	# Número de secuencia dado al artículo
 	
 	for indice_iter in range(len(urls_sumarizados)):
 		url_sumarizado = urls_sumarizados[indice_iter]
@@ -205,7 +206,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 
 		# Por cada artículo del XML sumarizado, crear un nuevo XML y obtener y guardar PDF y HTML.
 		for item in root.findall(root_fc.find('./etiquetas_xml_sumario/registro').text):
-
+			indice += 1
 			# Realizar la división en aperturas y cierres. (Preferencia a aperturas en BOA, a cierres en BOPs por haber menos)
 			tit = item.find(root_fc.find('./etiquetas_xml/auxiliares/titulo').text).text
 			if tipo == 'BOA':
@@ -323,8 +324,10 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 				elif et_tag == 'rango' or et_tag == 'organo_convocante':
 					if el is None or el.text is None or el.text == '':
 						SE.text = '-'
-					else:
+					elif et_tag == 'rango':
 						SE.text = el.text.capitalize()
+					else:
+						SE.text = el.text.upper()
 				else:
 					SE.text = el.text if el is not None else '-'
 
@@ -337,7 +340,6 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 			with open(directorio_base / dia / tipo_articulo / 'info' / nombre_xml_fichero,'wb') as file:
 				tree_info.write(file)
 
-			indice += 1
 
 def ingesta_diaria_aragon(dia, directorio_base):
 	ingesta_diaria_aragon_por_tipo(dia, directorio_base, 'BOA', recuperar_fichero_configuracion('BOA'))

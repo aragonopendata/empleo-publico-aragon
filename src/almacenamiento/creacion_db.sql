@@ -63,3 +63,12 @@ CREATE TABLE OFERTA (
     CONSTRAINT fk_puesto
         FOREIGN KEY (id_puesto) REFERENCES PUESTO (id)
 );
+
+/* Creacion tabla ARTICULOS_NO_INSERTADOS*/
+CREATE TABLE ARTICULOS_NO_INSERTADOS (
+    id serial PRIMARY KEY,
+    nombre varchar,
+    fecha date,
+    enlace varchar,
+    num_campos_detectados int
+);

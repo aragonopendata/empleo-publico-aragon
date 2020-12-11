@@ -25,6 +25,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 locale.setlocale(locale.LC_ALL, 'es_ES')
 
@@ -40,7 +41,7 @@ def recuperar_strings(tipo):
 		msg = (
 			"\nFailed: Open {ruta_fichero_conf}"
 		).format(
-			ruta_fichero_conf=ruta_fichero_conf
+			ruta_fichero_conf=ruta_fichero_aux
 		)
 		logger.exception(
 			msg

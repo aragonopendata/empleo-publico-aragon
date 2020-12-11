@@ -24,6 +24,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 # Devuelve una lista con las strings del campo indicado del fichero auxiliar indicado.
 def obtener_lista(ruta_aux, campo):

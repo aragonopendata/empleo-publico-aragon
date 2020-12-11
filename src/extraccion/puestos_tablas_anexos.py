@@ -23,6 +23,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 # Comprueba si es la única celda no vacía de su fila.
 def unica_celda(fila, index_puesto):

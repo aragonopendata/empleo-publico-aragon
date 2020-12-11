@@ -30,7 +30,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
-
+logger.disabled = True
 
 class PDFError(Exception):
     pass

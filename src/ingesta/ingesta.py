@@ -26,6 +26,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 # Devuelve el elemento root del fichero de configuración correspondiente a tipo_boletin
 def recuperar_fichero_configuracion(ruta_fcs, tipo_boletin):
@@ -144,20 +145,30 @@ def ingesta_diaria(dia, directorio_base):
 			boletines.append(x.split('_')[0])
 
 	for tipo_boletin in boletines:
-		if tipo_boletin == 'BOE':								# Realizar la ingesta del BOE
+		if tipo_boletin == 'BOE': # Realizar la ingesta del BOE
 			try:
 				ingesta_boe.ingesta_diaria_boe(dia, directorio_base)
 			except:
-				msg = ("\nFailed: ingesta_boe")
-				logger.exception(msg)
-		elif tipo_boletin in ['BOA', 'BOPH', 'BOPZ', 'BOPT']:	# Realizar la ingesta de boletines provinciales aragoneses
+				fichero_log = Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+				with open(fichero_log, 'a') as file:
+					file.write(f'{dia} - INGESTA BOE\n')
+		elif tipo_boletin in ['BOA', 'BOPH', 'BOPZ', 'BOPT']: # Realizar la ingesta de boletines provinciales aragoneses
 			try:
-				ingesta_aragon.ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo_boletin, recuperar_fichero_configuracion(ruta_fcs, tipo_boletin))
+				ingesta_aragon.ingesta_diaria_aragon_por_tipo(
+					dia, directorio_base, tipo_boletin,
+					recuperar_fichero_configuracion(ruta_fcs, tipo_boletin))
 			except:
-				msg = ("\nFailed: ingesta_" + tipo_boletin)
-				logger.exception(msg)
+				fichero_log = Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+				with open(fichero_log, 'a') as file:
+					file.write(f'{dia} - INGESTA ARAGÓN\n')
 		else:
-			ingesta_extra.ingesta_diaria_extra(dia, directorio_base, tipo_boletin)
+			try:
+				ingesta_extra.ingesta_diaria_extra(
+					dia, directorio_base, tipo_boletin)
+			except:
+				fichero_log = Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+				with open(fichero_log, 'a') as file:
+					file.write(f'{dia} - INGESTA EXTRA\n')
 
 
 def main():
@@ -169,6 +180,7 @@ def main():
 	directorio_base = Path(sys.argv[2])
 
 	ingesta_diaria(dia, directorio_base)
+
 
 if __name__ == "__main__":
     main()

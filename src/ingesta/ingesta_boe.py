@@ -27,6 +27,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 locale.setlocale(locale.LC_ALL, 'es_ES')
 
@@ -42,7 +43,7 @@ def recuperar_strings(tipo):
 		msg = (
 			"\nFailed: Open {ruta_fichero_conf}"
 		).format(
-			ruta_fichero_conf=ruta_fichero_conf
+			ruta_fichero_conf=ruta_fichero_aux
 		)
 		logger.exception(
 			msg
@@ -294,7 +295,10 @@ def ingesta_diaria_boe(dia, directorio_base):
 			else:
 				SE = ET.SubElement(articulo, et_tag)
 				el = root_aux.find(et_text)
-				SE.text = el.text if el is not None else '-'				
+				if et_tag == 'organo_convocante':
+					SE.text = el.text.upper() if el is not None else '-'
+				else:
+					SE.text = el.text if el is not None else '-'				
 
 		if 'uri_eli' not in [e[0] for e in etiquetas]:
 			SE = ET.SubElement(articulo, 'uri_eli')

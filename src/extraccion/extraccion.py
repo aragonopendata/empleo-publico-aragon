@@ -35,6 +35,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 # Iniciar calendario español
 cal = Spain()
@@ -83,17 +84,22 @@ def encontrar_matches(regex, documento, ignore_case=True):
 # Devuelve una lista de los grupos encontrados en la lista sin limpiar pasada.
 def limpiar_grupos(lista_grupos):
 	regex_posibles_grupos = '(A1|A2|A|B|C1|C2|C|E|GP1|GP2|GP3|GP4|GP5)'
+	regex_codigos = '[ABCE]{1}[0-9]{3}'
 	out = []
 	nlp = spacy.load("es_core_news_md")
 	for texto in lista_grupos:
 		doc = nlp(texto)
-		encontrado = encontrar_matches(regex_posibles_grupos, doc, False)
-		if not encontrado:
-			break
-		elif len(encontrado) == 1:
-			out.append(encontrado[0])
+		encontrado = encontrar_matches(regex_codigos, doc, False)
+		if encontrado:													# Si encuentra un grupo a través de un código de estatutario
+			out.append(texto[0])
 		else:
-			for e in encontrado: out.append(e)
+			encontrado = encontrar_matches(regex_posibles_grupos, doc, False)	# Si encuentra un grupo a través de grupo / subgrupo.
+			if not encontrado:
+				break
+			elif len(encontrado) == 1:
+				out.append(encontrado[0])
+			else:
+				for e in encontrado: out.append(e)
 		
 	return out
 
@@ -253,6 +259,7 @@ def obtener_num_plazas(tit_reg, tex_reg, tex_ner, num_puestos):
 	# Si se ha encontrado en el título, elegir la primera encontrada ahí
 	if tit_reg:
 		for p in tit_reg:
+			if 'bolsa de trabajo' in p.lower(): return '-'
 			p = limpiar_texto_plazas(p)
 			if p != '-': return p
 
@@ -261,6 +268,7 @@ def obtener_num_plazas(tit_reg, tex_reg, tex_ner, num_puestos):
 	# Limpiar todas las ocurrencias encontradas
 	lista = []
 	for i, t in enumerate(tex_reg+tex_ner):
+		if 'bolsa de trabajo' in t.lower(): return '-'
 		t = limpiar_texto_plazas(t)
 		if t != '-':
 			lista.append(t)
@@ -286,7 +294,7 @@ def leer_stopwords():
 def quitar_escalas_incorrectas(lista):
 	cadenas = ['escala a que pertenece', 'escala a la que pertenece', 'escala grupo', 'escala o clase de especialidad',
 			   'escala situación administrativa', 'escala por promoción', 'escala de procedencia', 'escala subgrupo',
-			   'escala grup/subg']
+			   'escala grup/subg', 'escala de funcionario']
 	cortas_correctas = ['de', 'y']
 	out = []
 	for e in lista:
@@ -471,7 +479,6 @@ def evaluar_tablas_cierre(dia, ruta_info, ruta_texto, ruta_pdf, ruta_regex, ruta
 
 # Modifica el fichero info pasado con todos los campos encontrados agregados.
 def evaluar_articulo(dia, ruta_info, ruta_texto, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar):
-	print('\nArticulo', ruta_texto)
 	root_info = obtener_root_fichero(ruta_info)
 	root_regex = obtener_root_fichero(ruta_regex)
 	root_auxiliar = obtener_root_fichero(ruta_auxiliar)
@@ -482,9 +489,6 @@ def evaluar_articulo(dia, ruta_info, ruta_texto, ruta_pdf, ruta_modelo_NER, ruta
 	ents_ner = extraccion_ner.obtener_campos_ner(ruta_texto, ruta_modelo_NER)
 	keys_ner = ents_ner.keys()
 	puestos_tablas = quitar_puestos_con_inicio_stopword(extraccion_tablas.obtener_puestos(ruta_pdf, ruta_auxiliar), stopwords)
-	print('Reglas', ents_reglas)
-	print('NER', ents_ner)
-	print('Tablas', puestos_tablas)
 
 	## Campos que aparecen siempre en metadatos:
 	#	fuente_datos, fecha_publicacion, enlace_convocatoria, organo_convocante, titulo, uri_eli*, rango*
@@ -605,14 +609,26 @@ def evaluar_todos(dia, directorio_base, ruta_modelo_NER, ruta_regex, ruta_auxili
 			ruta_pdf = directorio_base / dia / 'apertura' / 'pdf' / (filename.replace('.txt', '.pdf'))
 			ruta_info = directorio_base / dia / 'apertura' / 'info' / (filename.replace('.txt', '.xml'))
 
-			evaluar_articulo(dia, ruta_info, ruta_texto, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar)
+			try:
+				evaluar_articulo(dia, ruta_info, ruta_texto, ruta_pdf,
+								 ruta_modelo_NER, ruta_regex, ruta_auxiliar)
+			except:
+				fichero_log = Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+				with open(fichero_log, 'a') as file:
+					file.write(f'{filename.split(".")[0]} - EXTRACCION\n')
 
 	for filename in os.listdir(directorio_base / dia / 'cierre' / 'info'):
 		ruta_info = directorio_base / dia / 'cierre' / 'info' / filename
 		ruta_pdf = directorio_base / dia / 'cierre' / 'pdf' / (filename.replace('.xml', '.pdf'))
-		ruta_pdf = directorio_base / dia / 'cierre' / 'pdf' / (filename.replace('.xml', '.txt'))
-		evaluar_tablas_cierre(dia, ruta_info, ruta_texto, ruta_pdf, ruta_regex, ruta_auxiliar, ruta_modelo_NER)
-		
+		ruta_texto = directorio_base / dia / 'cierre' / 'txt' / (filename.replace('.xml', '.txt'))
+
+		try:
+			evaluar_tablas_cierre(dia, ruta_info, ruta_texto, ruta_pdf,
+								  ruta_regex, ruta_auxiliar, ruta_modelo_NER)
+		except:
+			fichero_log = Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+			with open(fichero_log, 'a') as file:
+				file.write(f'{filename.split(".")[0]} - EXTRACCION\n')
 
 # Evalúa únicamente el artículo del caso indicado, contando previamente
 # con una estructura definida.

@@ -26,6 +26,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 def conversion_a_texto(directorio_base, ruta_auxiliar, legible=False):
 	try:
@@ -71,13 +72,24 @@ def conversion_a_texto(directorio_base, ruta_auxiliar, legible=False):
 				input_filepath = directorio_base / tipo_articulo / formato / (filename.split('.')[0] + '.' + formato)
 				output_filepath = directorio_base / tipo_articulo / 'txt' / (filename.split('.')[0] + legible_sufijo + '.txt')
 
-				if formato == 'pdf':
-					pdf_a_txt.from_pdf_to_text(input_filepath, output_filepath, tipo_boletin, legible)
-				elif formato == 'xml':
-					xml_a_txt.from_xml_to_text(input_filepath, output_filepath, tipo_boletin, legible)
-				elif formato == 'html':
-					html_a_txt.from_html_to_text(input_filepath, output_filepath, tipo_boletin, legible)
-			
+				try:
+					if formato == 'pdf':
+						pdf_a_txt.from_pdf_to_text(
+							input_filepath, output_filepath, tipo_boletin,
+							legible)
+					elif formato == 'xml':
+						xml_a_txt.from_xml_to_text(
+							input_filepath, output_filepath, tipo_boletin,
+							legible)
+					elif formato == 'html':
+						html_a_txt.from_html_to_text(
+							input_filepath, output_filepath, tipo_boletin,
+							legible)
+				except:
+					fichero_log = Path(__file__).absolute().parent.parent / 'articulos_erroneos.log'
+					with open(fichero_log, 'a') as file:
+						file.write(f'{filename.split(".")[0]} - CONVERSION\n')
+
 
 def main():
 	if len(sys.argv) == 2:

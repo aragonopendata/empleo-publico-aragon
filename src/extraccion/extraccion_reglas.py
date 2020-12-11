@@ -23,6 +23,7 @@ logging.basicConfig()
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
+logger.disabled = True
 
 # Concatena los términos de la lista para utilizarlos con un '|' en una regex
 def terminos_a_regex(lista_terminos):
