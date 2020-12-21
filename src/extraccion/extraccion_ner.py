@@ -86,6 +86,8 @@ def obtener_campos_ner(ruta_texto, ruta_modelo):
 		)
 		sys.exit()
 
+	texto_completo = texto_completo.split('TEMARIO')[0]		# Se coge el texto solo hasta que se encuentra un TEMARIO
+
 	# Segmentar el texto
 	max_length = 3100
 	corte = '. '

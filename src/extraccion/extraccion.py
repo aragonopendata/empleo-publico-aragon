@@ -432,7 +432,7 @@ def limpiar_por_texto(lista, texto):
 # Devuelve el subelemento pasado tras incorporarle el campo indicado con el texto indicado.
 def escribir_en_info(SE, campo, texto):
 	campo_ET = ET.SubElement(SE, campo)
-	campo_ET.text = texto
+	campo_ET.text = texto.replace('\n',' ')
 	return SE
 
 # Devuelve el subelemento pasado tras incorporarle los puestos indicados.
@@ -446,7 +446,7 @@ def escribir_puestos_en_info(SE, puestos):
 	# Subetiquetas 'puesto' con cada puesto encontrado
 	for puesto in puestos:
 		puesto_ET = ET.SubElement(puestos_ET, 'puesto')
-		puesto_ET.text = puesto
+		puesto_ET.text = puesto.replace('\n',' ')
 
 	return SE
 
@@ -647,7 +647,7 @@ def evaluar_pruebas_aceptacion(caso):
 		elif '.txt' in file:
 			ruta_txt = cwd / file
 	if 'cierre' in caso.lower():
-		dia = file.split('_')[1]
+		dia = ruta_pdf.name.split('_')[1]
 		evaluar_tablas_cierre(dia, ruta_info, ruta_txt, ruta_pdf, ruta_regex, ruta_auxiliar, ruta_modelo_NER)
 	else:
 		evaluar_articulo(ruta_pdf.name.split('_')[-2], ruta_info, ruta_txt, ruta_pdf, ruta_modelo_NER, ruta_regex, ruta_auxiliar)

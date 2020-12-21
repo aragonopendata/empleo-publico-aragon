@@ -240,9 +240,10 @@ def ingesta_diaria_boe(dia, directorio_base):
 
 			except:
 				msg = (
-					"\nFailed: Write {path}"
+					"\nFailed: Write {path} from {url}"
 				).format(
-					path=ruta_fichero
+					path=ruta_fichero,
+					url = url
 				)
 				logger.exception(
 					msg

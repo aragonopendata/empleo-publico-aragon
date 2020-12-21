@@ -239,8 +239,9 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 							continue		# Saltar el artículo
 			else:
 				texto = item.find(root_fc.find('./etiquetas_xml/auxiliares/texto').text).text.lower()
-				if encontrar_cadenas(tit.lower(), strings_no_empleo_bops) or encontrar_cadenas(texto.lower(), strings_no_empleo_bops) or \
-				   encontrar_cadenas(tit.lower(), strings_no_empleo) or encontrar_cadenas(texto.lower(), strings_no_empleo) > 5:
+				inicio_texto = texto[:int(len(texto)/3)]
+				if encontrar_cadenas(tit.lower(), strings_no_empleo_bops) or encontrar_cadenas(inicio_texto.lower(), strings_no_empleo_bops) or \
+				   encontrar_cadenas(tit.lower(), strings_no_empleo) or encontrar_cadenas(inicio_texto.lower(), strings_no_empleo) > 5:
 					# Evitar artículos que no sean ofertas de empleo
 					continue
 				num_encontrados = encontrar_cadenas(tit.lower(), strings_cierre_bops)
@@ -252,7 +253,7 @@ def ingesta_diaria_aragon_por_tipo(dia, directorio_base, tipo, root_fc):
 					if num_encontrados > 1 or 'bases de la convocatoria' in texto:
 						tipo_articulo = 'apertura'
 					else:
-						inicio_texto = texto[int(len(texto)/3):]
+						inicio_texto = texto[:int(len(texto)/3)]
 						num_encontrados = encontrar_cadenas(inicio_texto, strings_cierre_bops)
 						if num_encontrados:					# Si encuentra algún cierre en el primer tercio, guardar en cierre
 							tipo_articulo = 'cierre'

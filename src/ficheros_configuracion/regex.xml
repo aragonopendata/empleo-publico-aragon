@@ -4,9 +4,9 @@
 	<reglas>
 		<apertura>
 			<cuerpo>([Cc]uerpo( de)? [a-zA-Zá-úÁ-Ú ]+|cuerpos docentes universitarios)(\.|\,)</cuerpo>
-			<escala>([Ee]scala|[Ee]scala) [a-zA-Zá-úÁ-Ú ]+</escala>
+			<escala>[^a-zA-Z][Ee]scala [a-zA-Zá-úÁ-Ú ]+</escala>
 			<subescala>[Ss]ubescala [a-zA-Zá-úÁ-Ú ]+</subescala>
-			<grupo>([ABCE]{1}[0-9]{3}|([Gg]rupo|[Ss]ubgrupo|[Gg]rupo\/[Ss]ubgrupo):? (A1|A2|A|B|C1|C2|C|E|GP1|GP2|GP3|GP4|GP5)\/?(A1|A2|A|B|C1|C2|C|E|GP1|GP2|GP3|GP4|GP5)?)</grupo>
+			<grupo>([^a-zA-Zá-úÁ-Ú\/][ABCE]{1}[0-9]{3}|([Gg]rupo|[Ss]ubgrupo|[Gg]rupo\/[Ss]ubgrupo):? (A1|A2|A|B|C1|C2|C|E|GP1|GP2|GP3|GP4|GP5)\/?(A1|A2|A|B|C1|C2|C|E|GP1|GP2|GP3|GP4|GP5)?)[^a-zA-Zá-úÁ-Ú\/]</grupo>
 			<web>(http|www)[a-zA-Z\.\:\/\-\_]+</web>
 			<email>[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}</email>
 			<plazo>

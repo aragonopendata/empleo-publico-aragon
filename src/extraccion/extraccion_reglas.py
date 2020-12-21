@@ -129,6 +129,8 @@ def obtener_campos_reglas(dia, ruta_info, ruta_texto, ruta_regex):
 		)
 		sys.exit()
 
+	texto = texto.split('TEMARIO')[0]
+
 	# Adaptar textos al modelo de noticias español
 	nlp = spacy.load("es_core_news_md")
 	# Si no funciona, probar:
