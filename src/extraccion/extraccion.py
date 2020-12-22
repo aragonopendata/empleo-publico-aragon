@@ -91,7 +91,7 @@ def limpiar_grupos(lista_grupos):
 		doc = nlp(texto)
 		encontrado = encontrar_matches(regex_codigos, doc, False)
 		if encontrado:													# Si encuentra un grupo a través de un código de estatutario
-			out.append(texto[0])
+			out.append([s for s in 'ABCE' if s in texto][0])
 		else:
 			encontrado = encontrar_matches(regex_posibles_grupos, doc, False)	# Si encuentra un grupo a través de grupo / subgrupo.
 			if not encontrado:
