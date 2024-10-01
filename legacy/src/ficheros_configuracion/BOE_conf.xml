@@ -1,0 +1,46 @@
+<!-- Fichero de configuración del BOE -->
+
+<root>
+	<puntos_corte>
+		<x0>50</x0>
+		<top>102</top>
+		<x1>520</x1>
+		<bottom>800</bottom>
+		<x0_fecha>150</x0_fecha>
+		<top_fecha>75</top_fecha>
+		<x1_fecha>420</x1_fecha>
+		<bottom_fecha>86</bottom_fecha>
+	</puntos_corte>
+	<prefijo_url>https://boe.es</prefijo_url>
+	<prefijo_url_sumario>https://boe.es/diario_boe/xml.php?id=BOE-S-</prefijo_url_sumario>
+	<secciones_xml>
+		<oposiciones>./diario/seccion[@num="2B"]/departamento/epigrafe/item</oposiciones>
+		<nombramientos>./diario/seccion[@num="2A"]/departamento/epigrafe/item</nombramientos>
+	</secciones_xml>
+	<etiquetas_xml>
+		<auxiliares>
+			<raiz>sumario</raiz>
+			<titulo_item>./titulo</titulo_item>
+			<rango>./metadatos/rango</rango>
+			<texto>./texto/p</texto>
+		</auxiliares>
+		<a_guardar>
+			<titulo>./metadatos/titulo</titulo>
+			<organo_convocante>./metadatos/departamento</organo_convocante>
+			<uri_eli>./metadatos/url_eli</uri_eli>
+			<rango>./metadatos/rango</rango>
+			<id_orden>./metadatos/numero_oficial</id_orden>
+			<fecha_disposicion>./metadatos/fecha_disposicion</fecha_disposicion>
+		</a_guardar>
+	</etiquetas_xml>
+	<url_formatos>
+		<pdf>urlPdf</pdf>
+		<xml>urlXml</xml>
+		<html>urlHtm</html>
+	</url_formatos>
+	<charsets>
+		<xml_sumario>utf-8</xml_sumario>
+		<html>utf-8</html>
+		<xml>utf-8</xml>
+	</charsets>
+</root>

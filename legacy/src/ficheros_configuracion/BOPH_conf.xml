@@ -1,0 +1,39 @@
+<!-- Fichero de configuración del BOPH -->
+
+<root>
+	<puntos_corte>
+		<x0>135</x0>
+		<top>80</top>
+		<x1>550</x1>
+		<bottom>800</bottom>
+		<x0_fecha>40</x0_fecha>
+		<top_fecha>40</top_fecha>
+		<x1_fecha>150</x1_fecha>
+		<bottom_fecha>60</bottom_fecha>
+	</puntos_corte>
+	<etiquetas_xml_sumario>
+		<raiz>documento</raiz>
+		<registro>./registro</registro>
+	</etiquetas_xml_sumario>
+	<etiquetas_xml>
+		<auxiliares>
+			<titulo>./titulo</titulo>
+			<texto>./texto</texto>
+			<urlPdf>./url</urlPdf>
+		</auxiliares>
+		<a_guardar>
+			<titulo>./titulo</titulo>
+			<organo_convocante>./emisor</organo_convocante>
+			<rango>./rango</rango>
+		</a_guardar>
+	</etiquetas_xml>
+	<charsets>
+		<listado_ELI>iso-8859-1</listado_ELI>
+		<url_sumarizado>iso-8859-1</url_sumarizado>
+		<html>iso-8859-1</html>
+		<xml>ISO-8859-1</xml>
+	</charsets>
+	<parametros_url>
+		<secc-c>huesca</secc-c>
+	</parametros_url>
+</root>

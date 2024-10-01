@@ -1,0 +1,47 @@
+<!-- Fichero de configuración del BOA -->
+
+<root>
+	<puntos_corte>
+		<x0>130</x0>
+		<top>74</top>
+		<x1>557</x1>
+		<bottom>790</bottom>
+		<x0_fecha>500</x0_fecha>
+		<top_fecha>40</top_fecha>
+		<x1_fecha>554</x1_fecha>
+		<bottom_fecha>52</bottom_fecha>
+	</puntos_corte>
+	<etiquetas_xml_sumario>
+		<raiz>documento</raiz>
+		<registro>./registro</registro>
+	</etiquetas_xml_sumario>
+	<etiquetas_xml>
+		<auxiliares>
+			<titulo>./titulo</titulo>
+			<texto>./texto</texto>
+			<urlPdf>./url</urlPdf>
+		</auxiliares>
+		<a_guardar>
+			<titulo>./titulo</titulo>
+			<organo_convocante>./emisor</organo_convocante>
+			<rango>./rango</rango>
+		</a_guardar>
+	</etiquetas_xml>
+	<charsets>
+		<listado_ELI>iso-8859-1</listado_ELI>
+		<url_sumarizado>iso-8859-1</url_sumarizado>
+		<html>iso-8859-1</html>
+		<xml>ISO-8859-1</xml>
+	</charsets>
+	<parametros_url>
+		<secc-c>BOA%2Bo%2BDisposiciones%2Bo%2BPersonal%2Bo%2BAcuerdos%2Bo%2BJusticia%2Bo%2BAnuncios</secc-c>
+		<info_seccion>
+			<seccion>Personal</seccion>
+			<subseccion>Oposiciones</subseccion>
+		</info_seccion>
+		<info_seccion>
+			<seccion>Personal</seccion>
+			<subseccion>Nombramientos</subseccion>
+		</info_seccion>
+	</parametros_url>
+</root>

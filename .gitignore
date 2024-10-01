@@ -1,0 +1,10 @@
+dags
+.env
+airflow.cfg
+deploy.sh
+docker-compose.yml
+Dockerfile
+entrypoint.sh
+ingesta-BO/logs
+ingesta-BO/data
+ingesta-BO/articulos_errones.log

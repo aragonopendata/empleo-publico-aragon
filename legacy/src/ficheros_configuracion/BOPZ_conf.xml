@@ -1,0 +1,39 @@
+<!-- Fichero de configuración del BOPZ -->
+
+<root>
+	<puntos_corte>
+		<x0>200</x0>
+		<top>90</top>
+		<x1>565</x1>
+		<bottom>750</bottom>
+		<x0_fecha>460</x0_fecha>
+		<top_fecha>35</top_fecha>
+		<x1_fecha>565</x1_fecha>
+		<bottom_fecha>50</bottom_fecha>
+	</puntos_corte>
+	<etiquetas_xml_sumario>
+		<raiz>documento</raiz>
+		<registro>./registro</registro>
+	</etiquetas_xml_sumario>
+	<etiquetas_xml>
+		<auxiliares>
+			<titulo>./titulo</titulo>
+			<texto>./texto</texto>
+			<urlPdf>./url</urlPdf>
+		</auxiliares>
+		<a_guardar>
+			<titulo>./titulo</titulo>
+			<organo_convocante>./emisor</organo_convocante>
+			<rango>./rango</rango>
+		</a_guardar>
+	</etiquetas_xml>
+	<charsets>
+		<listado_ELI>iso-8859-1</listado_ELI>
+		<url_sumarizado>iso-8859-1</url_sumarizado>
+		<html>iso-8859-1</html>
+		<xml>ISO-8859-1</xml>
+	</charsets>
+	<parametros_url>
+		<secc-c>zaragoza</secc-c>
+	</parametros_url>
+</root>

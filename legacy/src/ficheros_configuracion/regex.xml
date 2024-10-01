@@ -1,0 +1,66 @@
+<!-- Fichero auxiliar con las expresiones regulares -->
+
+<root>
+	<reglas>
+		<apertura>
+			<cuerpo>([Cc]uerpo( de)? [a-zA-Zá-úÁ-Ú ]+|cuerpos docentes universitarios)(\.|\,)</cuerpo>
+			<escala>[^a-zA-Z][Ee]scala [a-zA-Zá-úÁ-Ú ]+</escala>
+			<subescala>[Ss]ubescala [a-zA-Zá-úÁ-Ú ]+</subescala>
+			<grupo>([^a-zA-Zá-úÁ-Ú\/][ABCE]{1}[0-9]{3}|([Gg]rupo|[Ss]ubgrupo|[Gg]rupo\/[Ss]ubgrupo):? (A1|A2|A|B|C1|C2|C|E|GP1|GP2|GP3|GP4|GP5)\/?(A1|A2|A|B|C1|C2|C|E|GP1|GP2|GP3|GP4|GP5)?)[^a-zA-Zá-úÁ-Ú\/]</grupo>
+			<web>(http|www)[a-zA-Z\.\:\/\-\_]+</web>
+			<email>[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}</email>
+			<plazo>
+				<num_dias>([a-zA-Z]+|[0-9]+|[a-zA-Z]+ y [a-zA-Z]+)( \([0-9]+\))?</num_dias>
+				<tipo_dias> (días|DÍAS|día|DÍA|meses|MESES|mes|MES)( hábiles| HÁBILES| naturales| NATURALES| hábil| HÁBIL| natural| NATURAL)?</tipo_dias>
+				<contexto_1>\,? [a-zá ]+ (del|desde( el)?) </contexto_1>
+				<dia_inicio>(día siguiente|día|siguiente|la)</dia_inicio>
+				<contexto_2>[a-z ]+publicación</contexto_2>
+			</plazo>
+			<fecha_disposicion>
+				<resolucion>de [0-9]+ de [a-z]+ de [0-9]+</resolucion>
+				<orden>de [0-9]+ de [a-z]+</orden>
+			</fecha_disposicion>
+			<id_orden>(Orden|orden|ORDEN) [a-zA-Z]+\/[0-9]+\/[0-9]+</id_orden>
+			<puesto>
+				<denominacion>(DENOMINACIÓN|Denominación|denominación|denominacion|IDENTIFICACIÓN|Identificación)((de la[s]?|del|de los)? (plaza[s]?|puesto[s]?))?:[a-zA-Zá-úÁ-Ú\/\,\“\”\"\' ]+(\.|\n|\\n)</denominacion>
+				<cuerpo_escala>Cuerpo [a-zA-Zá-úÁ-Ú\/\, ]+, Escala [a-zA-Zá-úÁ-Ú\/\, ]+, [a-zA-Zá-úÁ-Ú\/ ]+\.</cuerpo_escala>
+				<especialidad>especialidad [a-zA-Zá-úÁ-Ú\/ ]+\.</especialidad>
+				<identificacion>IDENTIFICACIÓN DE LA PLAZA:[a-zA-Zá-úÁ-Ú\/ ]+\.</identificacion>
+			</puesto>
+			<num_plazas>(BOLSA DE TRABAJO|Bolsa de trabajo|Bolsa de Trabajo|bolsa de trabajo|Número de plazas: ([a-zA-Z]+|[0-9]+)|(Una|una|[a-zA-Z]+ y [a-zA-Z]+|[a-zA-Z]+|[0-9]+) (plaza|puesto|vacante)[s]?( vacante[s]?)?)</num_plazas>
+		</apertura>
+		<cierre>
+			<texto_fecha_disposicion>(Resolución[a-zá-úA-ZÁ-Ú0-9, ]*|Orden [A-Z]+\/[0-9]+\/[0-9]+,?) de [0-9]+ de [a-z]+( de [0-9]+|)</texto_fecha_disposicion>
+		</cierre>
+	</reglas>
+	<terminos_tipo>
+		<libre_e_interna>
+			<termino>por el sistema general de acceso libre y promoción interna</termino>
+			<termino>mediante acceso libre o promoción interna</termino>
+			<termino>por el turno de acceso libre y el sistema de promoción interna</termino>
+		</libre_e_interna>
+		<libre>
+			<termino>turno libre</termino>
+			<termino>acceso libre</termino>
+			<termino>oposición libre</termino>
+			<termino>estabilización de empleo temporal</termino>
+			<termino>todo aquel interesado</termino>
+			<termino>convocatoria abierta</termino>
+			<termino>carácter de abierta</termino>
+		</libre>
+		<interna>
+			<termino>promoción interna</termino>
+			<termino>concurso general</termino>
+			<termino>concurso específico</termino>
+			<termino>concurso de acceso</termino>
+			<termino>concurso de méritos</termino>
+			<termino>turno de promoción</termino>
+			<termino>sistema de promoción interna</termino>
+			<termino>libre designación</termino>
+			<termino>turno de movilidad</termino>
+			<termino>concurso de movilidad</termino>
+			<termino>concurso de traslados</termino>
+			<termino>concurso de destinos</termino>
+		</interna>
+	</terminos_tipo>
+</root>
