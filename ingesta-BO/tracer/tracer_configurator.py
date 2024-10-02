@@ -10,10 +10,10 @@ import os
 
 env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 class TracerConfigurator:
-    def __init__(self, service_name: str, dag_id: str, endpoint: str):
+    def __init__(self, service_name: str, dag_id: str):
         self.service_name = service_name
         self.dag_id = dag_id
-        self.endpoint = os.getenv("JAEGER_SERVER", "http://localhost:4317")
+        self.endpoint = os.getenv("JAEGER_SERVER", "http://bev-aodback-01.aragon.local/:4317")
         self.tracer = self._setup_tracer()
 
         RequestsInstrumentor().instrument()
