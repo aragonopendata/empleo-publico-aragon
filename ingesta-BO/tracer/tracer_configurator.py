@@ -5,12 +5,15 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME  # Importa SERVICE_NAME aquí
+from dotenv import load_dotenv
+import os
 
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 class TracerConfigurator:
-    def __init__(self, service_name: str, dag_id: str, endpoint: str = "http://biv-aodback-01.aragon.local:4317"):
+    def __init__(self, service_name: str, dag_id: str, endpoint: str):
         self.service_name = service_name
         self.dag_id = dag_id
-        self.endpoint = endpoint
+        self.endpoint = os.getenv("JAEGER_SERVER", "http://localhost:4317")
         self.tracer = self._setup_tracer()
 
         RequestsInstrumentor().instrument()
