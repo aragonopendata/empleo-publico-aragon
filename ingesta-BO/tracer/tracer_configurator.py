@@ -14,22 +14,24 @@ class TracerConfigurator:
     def __init__(self, service_name: str, dag_id: str):
         self.service_name = service_name
         self.dag_id = dag_id
-        self.endpoint = os.getenv("JAEGER_SERVER", "http://bev-aodback-01.aragon.local/:4317")
+        self.endpoint = os.getenv("APM_OTLP_ENDPOINT")
         self.tracer = self._setup_tracer()
 
         RequestsInstrumentor().instrument()
         LoggingInstrumentor().instrument(set_logging_format=True)
 
     def _setup_tracer(self):
-        # Crear el recurso con el nombre del servicio utilizando SERVICE_NAME
         resource = Resource.create({SERVICE_NAME: self.service_name})
-
-        # Configurar el TracerProvider con el recurso
         provider = TracerProvider(resource=resource)
         trace.set_tracer_provider(provider)
         
-        span_processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=self.endpoint, insecure=True))
-        trace.get_tracer_provider().add_span_processor(span_processor)
+        exporter = OTLPSpanExporter(
+            endpoint=self.endpoint,
+            insecure=True
+        )
+        span_processor = BatchSpanProcessor(exporter)
+        provider.add_span_processor(span_processor)
+        
         return trace.get_tracer(self.service_name)
 
     def get_tracer(self):
