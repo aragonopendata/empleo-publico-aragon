@@ -4,7 +4,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME  # Importa SERVICE_NAME aquí
+from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from dotenv import load_dotenv
 import os
 
