@@ -54,7 +54,7 @@ def main():
         logger.error("Uso: python eliminar_BO.py <dag_id>")
         sys.exit(1)
 
-    BASE_PATH = "/opt/airflow"
+    BASE_PATH = "/app"
     N_REGS = 10
 
     delete_old_boletines(BASE_PATH, N_REGS, logger, tracer)

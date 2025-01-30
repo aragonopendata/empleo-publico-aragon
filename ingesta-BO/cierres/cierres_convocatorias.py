@@ -327,17 +327,15 @@ def main():
             ruta_fichero_regex = pathlib.Path(sys.argv[3])
             ruta_fichero_aux = pathlib.Path(sys.argv[4])
             
-            # Parámetros conexión Postgres
-            db_name = sys.argv[5]
-            db_host = sys.argv[6]
-            db_port = sys.argv[7]
-            db_user = sys.argv[8]
-            db_password = sys.argv[9]
+            PSQL_HOST = os.getenv("BACK_HOST")
+            PSQL_USER = os.getenv("DB_EMPLEO_USER")
+            PSQL_PASS = os.getenv("DB_EMPLEO_PASS")
+            PSQL_DB = os.getenv("DB_EMPLEO_NAME")
+            PSQL_PORT = os.getenv("DB_EMPLEO_PORT")
 
-            # Crear conexión Postgres
             conn = psycopg2.connect(
-                dbname=db_name, user=db_user, password=db_password, host=db_host,
-                port=db_port)
+                dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASS, host=PSQL_HOST,
+                port=PSQL_PORT)
 
             comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex, ruta_fichero_aux, conn)
             
