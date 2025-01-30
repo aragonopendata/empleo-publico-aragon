@@ -11,8 +11,8 @@ import os
 env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
 load_dotenv(dotenv_path=env_path)
 class TracerConfigurator:
-    def __init__(self, service_name: str, dag_id: str):
-        self.service_name = service_name
+    def __init__(self, dag_id: str):
+        self.service_name = os.getenv("SERVICE_NAME")
         self.dag_id = dag_id
         self.endpoint = os.getenv("APM_OTLP_ENDPOINT")
         self.tracer = self._setup_tracer()
@@ -21,7 +21,10 @@ class TracerConfigurator:
         LoggingInstrumentor().instrument(set_logging_format=True)
 
     def _setup_tracer(self):
-        resource = Resource.create({SERVICE_NAME: self.service_name})
+        resource = Resource.create({
+            SERVICE_NAME: self.service_name,
+            "dag.id": self.dag_id
+        })
         provider = TracerProvider(resource=resource)
         trace.set_tracer_provider(provider)
         

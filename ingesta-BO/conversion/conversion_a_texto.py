@@ -14,7 +14,7 @@ from html_a_txt import HtmlToTextConverter
 # [TRACER Y LOGGER]
 from opentelemetry import trace
 
-sys.path.append(os.path.abspath('/opt/airflow/ingesta-BO'))
+sys.path.append(os.path.abspath('/app/ingesta-BO'))
 from tracer.tracer_configurator import TracerConfigurator
 from logger.logger_configurator import LoggerConfigurator
 
@@ -23,7 +23,7 @@ dag_id = sys.argv[-1]
 logger_configurator = LoggerConfigurator(name='Conversión', dag_id=dag_id)
 logger = logger_configurator.get_logger()
 
-tracer_configurator = TracerConfigurator(service_name=f'Conversión Task - {dag_id}', dag_id=dag_id)
+tracer_configurator = TracerConfigurator(dag_id=dag_id)
 tracer = tracer_configurator.get_tracer()
 
 pdf_a_txt = PDFToTextConverter(tracer, logger)

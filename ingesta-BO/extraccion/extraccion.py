@@ -21,14 +21,14 @@ from extraccion_tablas import ExtraccionTablas
 
 # [TRACER Y LOGGER]
 from opentelemetry import trace
-sys.path.append(os.path.abspath('/opt/airflow/ingesta-BO'))
+sys.path.append(os.path.abspath('/app/ingesta-BO'))
 
 from tracer.tracer_configurator import TracerConfigurator
 from logger.logger_configurator import LoggerConfigurator
 
 dag_id = sys.argv[-1]
 
-tracer_configurator = TracerConfigurator(service_name=f'Extracción Task - {dag_id}', dag_id=dag_id)
+tracer_configurator = TracerConfigurator(dag_id=dag_id)
 tracer = tracer_configurator.get_tracer()
 
 logger_configurator = LoggerConfigurator(name='Extracción', dag_id=dag_id)
