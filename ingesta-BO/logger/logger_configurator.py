@@ -5,7 +5,7 @@ import sys
 import os
 
 class LoggerConfigurator:
-    def __init__(self, name: str, dag_id: str, log_dir: str = '/opt/airflow/ingesta-BO/logs', level: int = logging.DEBUG):
+    def __init__(self, name: str, dag_id: str, log_dir: str = '/app/ingesta-BO/logs', level: int = logging.DEBUG):
         self.name = name
         self.dag_id = dag_id
         self.log_dir = log_dir

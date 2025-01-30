@@ -13,13 +13,13 @@ from time import strptime
 # [TRACER Y LOGGER]
 from opentelemetry import trace
 
-sys.path.append(os.path.abspath('/opt/airflow/ingesta-BO'))
+sys.path.append(os.path.abspath('/app/ingesta-BO'))
 from tracer.tracer_configurator import TracerConfigurator
 from logger.logger_configurator import LoggerConfigurator
 
 dag_id = sys.argv[-1]
 
-tracer_configurator = TracerConfigurator(service_name=f'Almacenamiento Task - {dag_id}', dag_id=dag_id)
+tracer_configurator = TracerConfigurator(dag_id=dag_id)
 tracer = tracer_configurator.get_tracer()
 
 logger_configurator = LoggerConfigurator(name='Almacenamiento', dag_id=dag_id)
@@ -576,12 +576,15 @@ def main():
         directorio_base = Path(sys.argv[2])
         ruta_auxiliar = Path(sys.argv[3])
         
-        PSQL_DB = sys.argv[4]
-        PSQL_HOST = sys.argv[5]
-        PSQL_PORT = sys.argv[6]
-        PSQL_USER = sys.argv[7]
-        PSQL_PASS = sys.argv[8]
-        dag_id = sys.argv[9]
+        env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+        load_dotenv(dotenv_path=env_path)
+
+        PSQL_HOST = os.getenv("BACK_HOST")
+        PSQL_USER = os.getenv("DB_EMPLEO_USER")
+        PSQL_PASS = os.getenv("DB_EMPLEO_PASS")
+        PSQL_DB = os.getenv("DB_EMPLEO_NAME")
+        PSQL_PORT = os.getenv("DB_EMPLEO_PORT")
+        dag_id = sys.argv[-1]
 
         try:
             # Crear conexión Postgres
