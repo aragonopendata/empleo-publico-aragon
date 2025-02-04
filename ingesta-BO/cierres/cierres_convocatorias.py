@@ -14,6 +14,7 @@ import locale
 
 # [TRACER Y LOGGER]
 from opentelemetry import trace
+from dotenv import load_dotenv
 
 sys.path.append(os.path.abspath('/app/ingesta-BO'))
 from tracer.tracer_configurator import TracerConfigurator
@@ -147,7 +148,7 @@ def obtener_fecha_disposicion_oferta(txt_filepath, root_info, ruta_fichero_regex
             raise
 
 def comprobar_cierre(txt_filepath, info_filepath, ruta_fichero_regex, ruta_fichero_aux, conn, cursor):
-    with tracer.start_as_current_span("Comprobar Cierre") as span:
+    with tracer.start_as_current_span("Comprobar cierre") as span:
         span.set_attribute("text_filepath", str(txt_filepath))
         span.set_attribute("info_filepath", str(info_filepath))
         span.set_attribute("regex_file", str(ruta_fichero_regex))
@@ -294,7 +295,7 @@ def comprobar_cierres_pruebas_aceptacion(caso):
         conn.close()
 
 def comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex, ruta_fichero_aux, conn):
-    with tracer.start_as_current_span("Comprobar Cierres Directorio") as span:
+    with tracer.start_as_current_span("Comprobar cierres directorio") as span:
         span.set_attribute("directorio_base", str(directorio_base))
         span.set_attribute("dia", dia)
         cursor = conn.cursor()
@@ -315,10 +316,11 @@ def comprobar_cierres_directorio(directorio_base, dia, ruta_fichero_regex, ruta_
 
 
 def main():
-    with tracer.start_as_current_span("Main Function Execution") as span:
+    with tracer.start_as_current_span("Cierres") as span:
         if len(sys.argv) == 2:
             comprobar_cierres_pruebas_aceptacion(sys.argv[1])
-        elif len(sys.argv) != 10:
+        elif len(sys.argv) != 6:
+            logger.error(f'Numero de parametros: {len(sys.argv)}')
             logger.error('Numero de parametros incorrecto.')
             return
         else:
@@ -326,6 +328,9 @@ def main():
             dia = sys.argv[2]
             ruta_fichero_regex = pathlib.Path(sys.argv[3])
             ruta_fichero_aux = pathlib.Path(sys.argv[4])
+
+            env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+            load_dotenv(dotenv_path=env_path)
             
             PSQL_HOST = os.getenv("BACK_HOST")
             PSQL_USER = os.getenv("DB_EMPLEO_USER")

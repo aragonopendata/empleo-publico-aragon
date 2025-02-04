@@ -26,7 +26,7 @@ def delete_old_boletines(base_path, n_regs, logger, tracer):
     logger.info(f'Revisando boletines en: {base_folder}')
 
     try:
-        with tracer.start_as_current_span("Delete Old Boletines") as span:
+        with tracer.start_as_current_span("Eliminar boletines antiguos") as span:
             boletines = sorted(base_folder.iterdir(), reverse=True)
             logger.debug(f'Boletines encontrados: {boletines}')
 

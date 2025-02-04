@@ -195,7 +195,7 @@ def main():
     directorio_base = Path(sys.argv[2])
 
     try:
-        with tracer.start_as_current_span("Ingesta main"):
+        with tracer.start_as_current_span("Ingesta"):
             logger.info(f"Iniciando ingesta diaria para el día {dia} en el directorio {directorio_base}")
             ingesta_diaria(dia, directorio_base)
     finally:

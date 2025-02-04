@@ -97,7 +97,7 @@ def conversion_a_texto(directorio_base, ruta_auxiliar, legible=False):
                             file.write(f'{filename.split(".")[0]} - CONVERSION\n')
 
 def main():
-    with tracer.start_as_current_span("Conversión a texto main") as span:
+    with tracer.start_as_current_span("Conversión") as span:
         if len(sys.argv) == 4:
             directorio_base = Path(sys.argv[1])
             ruta_auxiliar = Path(__file__).absolute().parent.parent / 'ficheros_configuracion' / 'auxiliar.xml'

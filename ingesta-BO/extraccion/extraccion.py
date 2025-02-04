@@ -791,7 +791,7 @@ def evaluar_pruebas_aceptacion(caso):
         span.set_attribute("caso", caso)
 
 def main():
-    with tracer.start_as_current_span("Extraccion main") as span:
+    with tracer.start_as_current_span("Extracción") as span:
             span.set_attribute("dag_id", dag_id)
 
             # Validar el número de parámetros

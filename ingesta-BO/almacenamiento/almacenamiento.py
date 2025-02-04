@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 from pathlib import Path
 from datetime import date, timedelta, datetime
 from time import strptime
+from dotenv import load_dotenv
 
 # [TRACER Y LOGGER]
 from opentelemetry import trace
@@ -84,7 +85,8 @@ def hay_puesto(puesto, cursor):
 
             cursor.execute(sql, nuevo_puesto)
             id_recuperado = cursor.fetchone()
-            span.set_attribute("puesto", puesto)
+            if puesto is not None:
+                span.set_attribute("puesto", puesto)
             logger.debug(f"Puesto verificado: {puesto}, ID recuperado: {id_recuperado}")
             return id_recuperado[0] if id_recuperado is not None else False
         except Exception as e:
@@ -477,7 +479,7 @@ def almacenar_pruebas_aceptacion(caso):
 
 # Almacena los datos de todos los ficheros de info del directorio y día pasados.
 def almacenar_todos(dia, directorio_base, ruta_auxiliar, conn):
-    with tracer.start_as_current_span("almacenar_todos") as span:
+    with tracer.start_as_current_span(f"Almacenamiento {dia}") as span:
         for filename in os.listdir(directorio_base / dia / 'apertura' / 'info'):
             ruta_info = directorio_base / dia / 'apertura' / 'info' / filename
             try:
@@ -494,7 +496,7 @@ def almacenar_todos(dia, directorio_base, ruta_auxiliar, conn):
 
 # Devuelve True si hay convocatorias del día indicado en la base de datos.
 def hay_convocatorias(conn, dia):
-    with tracer.start_as_current_span("hay_convocatorias") as span:
+    with tracer.start_as_current_span("Comprobar si hay convocatorias") as span:
         cursor = conn.cursor()
         try:
             query = ('SELECT id '
@@ -515,7 +517,7 @@ def hay_convocatorias(conn, dia):
 
 # Borra las ofertas y convocatorias del día indicado y almacena las del directorio indicado, de forma atómica.
 def borrar_y_almacenar(dia, directorio_base, ruta_auxiliar, conn):
-    with tracer.start_as_current_span("borrar_y_almacenar") as span:
+    with tracer.start_as_current_span(f"Borrar convocatorias {dia} ") as span:
         try:
             cursor = conn.cursor()
 
@@ -569,8 +571,10 @@ def main():
             almacenar_pruebas_aceptacion(caso)
         except Exception as e:
             logger.error(f"Error during prueba de aceptación for caso: {caso}", exc_info=e)
-    elif len(sys.argv) != 10:
+    elif len(sys.argv) != 5:
+        logger.error(f'Número de parámetros: {len(sys.argv)}')
         logger.error('Número de parámetros incorrecto.')
+
     else:
         dia = sys.argv[1]
         directorio_base = Path(sys.argv[2])
@@ -586,27 +590,27 @@ def main():
         PSQL_PORT = os.getenv("DB_EMPLEO_PORT")
         dag_id = sys.argv[-1]
 
-        try:
-            # Crear conexión Postgres
-            conn = psycopg2.connect(
-                dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASS, host=PSQL_HOST,
-                port=PSQL_PORT)
-            
-            logger.info(f"Connection to PostgreSQL established with database: {PSQL_DB}")
-            
-            if hay_convocatorias(conn, dia):
-                logger.info(f"Existing convocatorias found for date: {dia}. Starting delete and store process.")
-                borrar_y_almacenar(dia, directorio_base, ruta_auxiliar, conn)
-            else:
-                logger.info(f"No existing convocatorias found for date: {dia}. Starting store all process.")
-                almacenar_todos(dia, directorio_base, ruta_auxiliar, conn)
-            
-            conn.close()
-            logger.info("PostgreSQL connection closed.")
-        except psycopg2.DatabaseError as e:
-            logger.error("Database error occurred.", exc_info=e)
-        except Exception as e:
-            logger.error("An unexpected error occurred.", exc_info=e)
+        with tracer.start_as_current_span("Almacenamiento") as span:
+            try:
+                conn = psycopg2.connect(
+                    dbname=PSQL_DB, user=PSQL_USER, password=PSQL_PASS, host=PSQL_HOST,
+                    port=PSQL_PORT)
+                
+                logger.info(f"Connection to PostgreSQL established with database: {PSQL_DB}")
+                
+                if hay_convocatorias(conn, dia):
+                    logger.info(f"Existing convocatorias found for date: {dia}. Starting delete and store process.")
+                    borrar_y_almacenar(dia, directorio_base, ruta_auxiliar, conn)
+                else:
+                    logger.info(f"No existing convocatorias found for date: {dia}. Starting store all process.")
+                    almacenar_todos(dia, directorio_base, ruta_auxiliar, conn)
+                
+                conn.close()
+                logger.info("PostgreSQL connection closed.")
+            except psycopg2.DatabaseError as e:
+                logger.error("Database error occurred.", exc_info=e)
+            except Exception as e:
+                logger.error("An unexpected error occurred.", exc_info=e)
 
 if __name__ == "__main__":
 	main()
