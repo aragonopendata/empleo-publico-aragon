@@ -3,6 +3,7 @@ import os
 import logging
 import pathlib
 import re
+from pathlib import Path
 
 from xml.etree import ElementTree as ET
 import psycopg2
