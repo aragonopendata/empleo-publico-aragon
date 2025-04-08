@@ -107,7 +107,9 @@ class IngestaBOE:
             with self.tracer.start_as_current_span("Obtener XML Sumario") as span_sumario:
                 span_sumario.set_attribute("request.url", url)
                 try:
-                    response = requests.get(url)
+                    headers = {"Accept": "application/xml"}
+                    response = requests.get(url, headers=headers)
+                    
                     contenido = response.content
                     span_sumario.set_attribute("response.status_code", response.status_code)
                 except Exception as e:
@@ -120,9 +122,17 @@ class IngestaBOE:
             # Chequear que en el día indicado ha habido BOE
             with self.tracer.start_as_current_span("Chequear BOE en día indicado") as span_chequeo:
                 try:
+                    # Cambio: La estructura del XML ha cambiado, ahora tiene una raíz 'response'
                     root_check = ET.fromstring(contenido)
-                    if root_check.tag != root_fc.find('./etiquetas_xml/auxiliares/raiz').text:
-                        raise AssertionError(f"El tag del root es {root_check.tag}, el dia {dia} es {diaSemana}")
+                    # Comprobamos que el código de estado es 200 (ok)
+                    status_code = root_check.find('./status/code')
+                    if status_code is None or status_code.text != '200':
+                        raise AssertionError(f"El código de estado no es 200, el dia {dia} es {diaSemana}")
+                    
+                    # Verificar que hay datos en el sumario
+                    data = root_check.find('./data/sumario')
+                    if data is None:
+                        raise AssertionError(f"No hay datos en el sumario, el dia {dia} es {diaSemana}")
                 except Exception as e:
                     msg = f"Failed assert: {str(e)}"
                     self.logger.exception(msg)
@@ -133,7 +143,7 @@ class IngestaBOE:
             # Guardar XML sumario
             with self.tracer.start_as_current_span("Guardar XML Sumario") as span_guardar_sumario:
                 try:
-                    nombre_sumario = 'BOE_Sumario_' + dia + '.xml'
+                    nombre_sumario = 'BOE_Sumarizado_' + dia + '.xml'
                     ruta_sumario = directorio_base / dia / nombre_sumario
                     span_guardar_sumario.set_attribute("file.path", str(ruta_sumario))
 
@@ -166,15 +176,19 @@ class IngestaBOE:
             strings_no_empleo = self.recuperar_strings('no_empleo')
             indice = 1
 
+            # Actualizar las rutas XPath para adaptarse a la nueva estructura XML
+            oposiciones_path = './data/sumario/diario/seccion[@codigo="2B"]/departamento/epigrafe/item'
+            nombramientos_path = './data/sumario/diario/seccion[@codigo="2A"]/departamento/epigrafe/item'
+            
             # Por cada artículo de las secciones que nos interesan del fichero de configuración:
-            for item in root.findall(root_fc.find('./secciones_xml/oposiciones').text) + \
-                root.findall(root_fc.find('./secciones_xml/nombramientos').text):
+            for item in root.findall(oposiciones_path) + root.findall(nombramientos_path):
                 
                 with self.tracer.start_as_current_span("Procesar artículo del sumario") as span_procesar:
-                    tit = item.find(root_fc.find('./etiquetas_xml/auxiliares/titulo_item').text).text
+                    # Actualizar los XPath para acceder a los elementos en la nueva estructura
+                    tit = item.find('./titulo').text
                     no_es_empleo = False
                     for cadena in strings_no_empleo:
-                        if cadena in tit.lower():	# Si no es de empleo, no guardar artículo
+                        if cadena in tit.lower():    # Si no es de empleo, no guardar artículo
                             no_es_empleo = True
                     if no_es_empleo:
                         continue
@@ -184,17 +198,17 @@ class IngestaBOE:
                         if cadena in tit.lower():
                             es_apertura = True
                             break
-                    if es_apertura:			# Guardar en apertura
+                    if es_apertura:            # Guardar en apertura
                         tipo_articulo = 'apertura'
                     else:
                         for cadena in strings_cierre:
                             if cadena in tit.lower():
                                 es_cierre = True
                                 break
-                        if es_cierre:		# Guardar en cierre
+                        if es_cierre:        # Guardar en cierre
                             tipo_articulo = 'cierre'
                         else:
-                            continue		# Saltar el artículo
+                            continue        # Saltar el artículo
 
                     nombre_fichero = 'BOE_' + dia + '_' + str(indice)
 
@@ -202,8 +216,8 @@ class IngestaBOE:
                     formatos = []
                     for t in root_fc.find('url_formatos').iter():
                         formatos.append(t.tag)
-                    formatos = formatos[1:]		# Quitar el propio tag de url_formatos
-                    if 'xml' in formatos:		# Poner el xml primero
+                    formatos = formatos[1:]        # Quitar el propio tag de url_formatos
+                    if 'xml' in formatos:        # Poner el xml primero
                         formatos.remove('xml')
                         formatos.insert(0,'xml')
 
@@ -211,7 +225,18 @@ class IngestaBOE:
                     for formato in formatos:
                         nombre_formato_fichero = nombre_fichero + '.' + formato
                         ruta_fichero = directorio_base / dia / tipo_articulo / formato / nombre_formato_fichero
-                        url = prefijo_url + item.find('./' + root_fc.find('./url_formatos/' + formato).text).text
+                        
+                        # Actualizar las rutas a los distintos formatos
+                        if formato == 'pdf':
+                            url_attr = 'url_pdf'
+                        elif formato == 'xml':
+                            url_attr = 'url_xml'
+                        elif formato == 'html':
+                            url_attr = 'url_html'
+                        else:
+                            url_attr = f'url_{formato}'
+                        
+                        url = item.find(f'./{url_attr}').text
 
                         with self.tracer.start_as_current_span(f"Guardar archivo {formato}") as span_guardar_formato:
                             span_guardar_formato.set_attribute("file.path", str(ruta_fichero))
@@ -221,7 +246,8 @@ class IngestaBOE:
                                 contenido_url = requests.get(url).content
                                 if formato == 'xml':
                                     root_tmp = ET.fromstring(contenido_url)
-                                    rango_encontrado = root_tmp.find(root_fc.find('./etiquetas_xml/auxiliares/rango').text).text
+                                    # Actualizar la ruta al elemento rango
+                                    rango_encontrado = root_tmp.find('./metadatos/rango').text
                                     if rango_encontrado.lower() not in ['resolución', 'resolucion', 'orden']:
                                         siguiente_iteracion = True
                                         break
@@ -235,10 +261,10 @@ class IngestaBOE:
                                 span_guardar_formato.set_status(trace.status.StatusCode.ERROR)
                                 siguiente_iteracion = True
                                 break
-                                
+                                    
                         if formato == 'html':
                             url_html = url
-                            
+                                
                     if siguiente_iteracion:
                         continue
 
@@ -253,39 +279,42 @@ class IngestaBOE:
                     enlace = ET.SubElement(articulo, 'enlace_convocatoria')
                     enlace.text = url_html
 
-                        # Lectura del XML del artículo para obtener etiquetas
+                    # Lectura del XML del artículo para obtener etiquetas
                     nombre_xml_fichero = nombre_fichero + '.xml'
                     with open(directorio_base / dia / tipo_articulo / 'xml' / nombre_xml_fichero,'rb') as file:
                         tree_aux = ET.parse(file)
                         root_aux = tree_aux.getroot()
 
-                        #Lectura de etiquetas a guardar
+                    # Lectura de etiquetas a guardar
                     etiquetas = []
                     for i in root_fc.find('./etiquetas_xml/a_guardar').iter():
                         etiquetas.append((i.tag, i.text))
                     etiquetas = etiquetas[1:]
 
                     buscar_id_orden = 'rango' in [e[0] for e in etiquetas] and \
-                                            root_aux.find(root_fc.find('./etiquetas_xml/a_guardar/rango').text).text.lower() == 'orden'
+                                            root_aux.find('./metadatos/rango').text.lower() == 'orden'
 
-                        # Obtención de textos de las etiquetas
+                    # Obtención de textos de las etiquetas (actualizando rutas)
                     for et_tag, et_text in etiquetas:
+                        # Actualizar la ruta para que apunte a los metadatos
+                        et_text_updated = et_text.replace('./metadatos/', './metadatos/')
+                        
                         if et_tag == 'fecha_disposicion':
                             SE = ET.SubElement(articulo, et_tag)
-                            el = root_aux.find(et_text)
+                            el = root_aux.find(et_text_updated)
                             SE.text = '-' if el is None else el.text[-2:]+'/'+el.text[4:6]+'/'+el.text[:4]
                         elif et_tag == 'id_orden':
                             if buscar_id_orden:
                                 SE = ET.SubElement(articulo, et_tag)
-                                el = root_aux.find(et_text)
+                                el = root_aux.find(et_text_updated)
                                 SE.text = el.text if el is not None else '-'
                         else:
                             SE = ET.SubElement(articulo, et_tag)
-                            el = root_aux.find(et_text)
+                            el = root_aux.find(et_text_updated)
                             if et_tag == 'organo_convocante':
                                 SE.text = el.text.upper() if el is not None else '-'
                             else:
-                                SE.text = el.text if el is not None else '-'				
+                                SE.text = el.text if el is not None else '-'                
 
                     if 'uri_eli' not in [e[0] for e in etiquetas]:
                         SE = ET.SubElement(articulo, 'uri_eli')
