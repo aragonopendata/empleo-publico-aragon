@@ -123,13 +123,44 @@ def insertar_puestos(cursor, denominaciones, cuerpo, escala, subescala):
             span.set_status(trace.StatusCode.ERROR)
             raise
 
+def hay_convocatoria(cursor, organo_convocante, titulo, id_fecha_disposicion, fuente):
+    with tracer.start_as_current_span("hay_convocatoria") as span:
+        try:
+            sql = ('SELECT id FROM convocatoria '
+                   'WHERE organo_convocante = %s '
+                   'AND titulo = %s '
+                   'AND id_fecha_disposicion = %s '
+                   'AND fuente = %s;')
+            cursor.execute(sql, (organo_convocante, titulo, id_fecha_disposicion, fuente))
+            id_recuperado = cursor.fetchone()
+
+            existe = id_recuperado is not None
+            span.set_attribute("convocatoria_existe", existe)
+
+            return id_recuperado[0] if existe else False
+        except Exception as e:
+            logger.exception("Error al verificar si existe la convocatoria.")
+            span.record_exception(e)
+            span.set_status(trace.StatusCode.ERROR)
+            raise
+
 def insertar_convocatoria(cursor, organo_convocante, titulo, uri_eli, enlace,
-                          grupo, plazo, rango, id_orden, fuente, tipo, 
-                          datos_contacto, num_plazas, id_fecha_publicacion, 
+                          grupo, plazo, rango, id_orden, fuente, tipo,
+                          datos_contacto, num_plazas, id_fecha_publicacion,
                           id_fecha_disposicion, id_fecha_inicio_presentacion,
                           id_fecha_fin_presentacion):
     with tracer.start_as_current_span("insertar_convocatoria") as span:
         try:
+            # Verificar si ya existe la convocatoria
+            id_existente = hay_convocatoria(cursor, organo_convocante, titulo,
+                                            id_fecha_disposicion, fuente)
+            if id_existente:
+                span.set_attribute("id_convocatoria", id_existente)
+                span.set_attribute("convocatoria_existente", True)
+                logger.info(f"Convocatoria ya existente con ID: {id_existente}, no se inserta duplicado")
+                return id_existente
+
+            # Insertar nueva convocatoria
             sql = ('INSERT INTO convocatoria('
                    'organo_convocante, titulo, URI_ELI, enlace, grupo, plazo, '
                    'rango, id_orden, fuente, tipo, datos_contacto, '
@@ -145,6 +176,7 @@ def insertar_convocatoria(cursor, organo_convocante, titulo, uri_eli, enlace,
                                  id_fecha_fin_presentacion))
             id_convocatoria = cursor.fetchone()[0]
             span.set_attribute("id_convocatoria", id_convocatoria)
+            span.set_attribute("convocatoria_existente", False)
             logger.info(f"Convocatoria insertada con ID: {id_convocatoria}")
             return id_convocatoria
         except Exception as e:
@@ -477,21 +509,33 @@ def almacenar_pruebas_aceptacion(caso):
                     span.set_status(trace.StatusCode.ERROR)
                     raise
 
-# Almacena los datos de todos los ficheros de info del directorio y día pasados.
+# Almacena los datos de todos los ficheros de info del directorio y dia pasados.
 def almacenar_todos(dia, directorio_base, ruta_auxiliar, conn):
     with tracer.start_as_current_span(f"Almacenamiento {dia}") as span:
-        for filename in os.listdir(directorio_base / dia / 'apertura' / 'info'):
-            ruta_info = directorio_base / dia / 'apertura' / 'info' / filename
-            try:
-                almacenar(obtener_root_fichero(ruta_info),
-                          obtener_root_fichero(ruta_auxiliar), conn, filename)
-                conn.commit()
-                span.set_attribute("file.processed", filename)
-            except Exception as e:
-                logger.exception("Error processing file in almacenar_todos.")
-                span.record_exception(e)
-                span.set_status(trace.StatusCode.ERROR)
-                continue
+        archivos_procesados = []
+        try:
+            for filename in os.listdir(directorio_base / dia / 'apertura' / 'info'):
+                ruta_info = directorio_base / dia / 'apertura' / 'info' / filename
+                try:
+                    almacenar(obtener_root_fichero(ruta_info),
+                              obtener_root_fichero(ruta_auxiliar), conn, filename)
+                    archivos_procesados.append(filename)
+                    span.set_attribute("file.processed", filename)
+                except Exception as e:
+                    logger.exception(f"Error processing file {filename} in almacenar_todos.")
+                    span.record_exception(e)
+                    span.set_status(trace.StatusCode.ERROR)
+                    raise
+
+            # Commit atomico: solo si todos los archivos se procesaron correctamente
+            conn.commit()
+            logger.info(f"Commit exitoso para {len(archivos_procesados)} archivos del dia {dia}")
+            span.set_attribute("archivos_procesados", len(archivos_procesados))
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Rollback ejecutado. Archivos procesados antes del error: {archivos_procesados}")
+            span.set_status(trace.StatusCode.ERROR)
+            raise
 
 
 # Devuelve True si hay convocatorias del día indicado en la base de datos.

@@ -248,23 +248,47 @@ def obtener_fechas_presentacion(root_regex, plazo, fpub):
         span.set_attribute("regex_dia_inicio", regex_dia_inicio)
         
         try:
+            # Primera búsqueda: patrón completo tipo_dias+contexto_1+dia_inicio
             match = re.search(regex_tipo_dias+regex_contexto_1+regex_dia_inicio, plazo)
+            if match is None:
+                logger.warning(f"No se encontró coincidencia para el plazo: '{plazo}' con patrón: '{regex_tipo_dias+regex_contexto_1+regex_dia_inicio}'")
+                span.set_attribute("match_fallido", True)
+                span.set_attribute("plazo_sin_match", plazo)
+                return '-', '-'
+
             dias = to_number(plazo[:match.span()[0]].split('(')[0])
             plazo = plazo[match.span()[0]:]
 
+            # Segunda búsqueda: tipo de días
             match = re.match(regex_tipo_dias, plazo)
+            if match is None:
+                logger.warning(f"No se encontró tipo de días en plazo: '{plazo}'")
+                return '-', '-'
+
             split = plazo[match.span()[0]:match.span()[1]].split(' ')
-            if 'mes' in split[1]:
+            if len(split) > 1 and 'mes' in split[1]:
                 dias *= 30
             es_habil = len(split) > 2 and ('hábil' in split[2] or 'laborable' in split[2])
 
             plazo = plazo[match.span()[1]:]
+
+            # Tercera búsqueda: contexto
             match = re.match(regex_contexto_1, plazo)
+            if match is None:
+                logger.warning(f"No se encontró contexto en plazo: '{plazo}'")
+                return '-', '-'
+
             plazo = plazo[match.span()[1]:]
+
+            # Cuarta búsqueda: día de inicio
             match = re.match(regex_dia_inicio, plazo)
+            if match is None:
+                logger.warning(f"No se encontró día de inicio en plazo: '{plazo}'")
+                return '-', '-'
+
             es_dia_siguiente = 'siguiente' in plazo[:match.span()[1]]
         except Exception as e:
-            logger.exception("Error al calcular fechas de presentación")
+            logger.exception(f"Error al calcular fechas de presentación para plazo: '{plazo}'")
             span.record_exception(e)
             span.set_status(trace.StatusCode.ERROR)
             return '-', '-'

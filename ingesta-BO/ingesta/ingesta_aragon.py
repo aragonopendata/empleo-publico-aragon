@@ -140,175 +140,181 @@ class IngestaAragon:
                     span.set_status(trace.status.StatusCode.ERROR)
                     return
 
-            with self.tracer.start_as_current_span("Guardar XML Sumarizado") as span:
-                try:
-                    if len(urls_sumarizados) > 1:
-                        nombre_sumario = tipo + '_Sumarizado_' + dia + '_' + str(indice_iter+1) + '.xml'
-                    else:
-                        nombre_sumario = tipo + '_Sumarizado_' + dia + '.xml'
-                    ruta_sumario = directorio_base / dia / nombre_sumario
-                    with open(ruta_sumario, 'wb') as file:
-                        file.write(encoded_information)
-                    self.logger.info(f"XML sumarizado guardado en {ruta_sumario}")
-                    span.set_attribute("file.path", str(ruta_sumario))
-                except Exception as e:
-                    msg = f"Failed: Write {url_sumarizado} content in {ruta_sumario}."
-                    self.logger.exception(msg)
-                    span.record_exception(e)
-                    span.set_status(trace.status.StatusCode.ERROR)    
-                    
-            # Leer y parsear el fichero sumarizado
-            try:
-                with open(ruta_sumario, 'rb') as file:
-                    tree = ET.parse(file)
-                    root = tree.getroot()
-            except:
-                msg = (
-                    "\nFailed: Open {ruta_sumario}"
-                ).format(
-                    ruta_sumario=ruta_sumario
-                )
-                logger.exception(
-                    msg
-                )
-                return
-
-            # Por cada artículo del XML sumarizado, crear un nuevo XML y obtener y guardar PDF y HTML.
-            for item in root.findall(root_fc.find('./etiquetas_xml_sumario/registro').text):
-                indice += 1
-                # Realizar la división en aperturas y cierres. (Preferencia a aperturas en BOA, a cierres en BOPs por haber menos)
-                tit = item.find(root_fc.find('./etiquetas_xml/auxiliares/titulo').text).text
-                if tipo == 'BOA':
-                    no_es_de_empleo = False
-                    for cadena in strings_no_empleo:	# Si no es de empleo, no guardar artículo
-                        if cadena in tit.lower():
-                            no_es_de_empleo = True
-                            break
-                    if no_es_de_empleo:
-                        continue
-                    es_apertura = False
-                    es_cierre = False
-                    if 'por la que se deja sin efecto' in tit.lower():
-                        tipo_articulo = 'cierre'
-                    else:
-                        for cadena in strings_apertura:
-                            if cadena in tit.lower():
-                                es_apertura = True
-                                break
-                        if es_apertura:			# Guardar en apertura
-                            tipo_articulo = 'apertura'
-                        else:
-                            for cadena in strings_cierre:
-                                if cadena in tit.lower():
-                                    es_cierre = True
-                                    break
-                            if es_cierre:		# Guardar en cierre
-                                tipo_articulo = 'cierre'
-                            else:
-                                continue		# Saltar el artículo
-                else:
-                    texto = item.find(root_fc.find('./etiquetas_xml/auxiliares/texto').text).text.lower()
-                    inicio_texto = texto[:int(len(texto)/3)]
-                    if self.encontrar_cadenas(tit.lower(), strings_no_empleo_bops) or self.encontrar_cadenas(inicio_texto.lower(), strings_no_empleo_bops) or \
-                    self.encontrar_cadenas(tit.lower(), strings_no_empleo) or self.encontrar_cadenas(inicio_texto.lower(), strings_no_empleo) > 5:
-                        # Evitar artículos que no sean ofertas de empleo
-                        continue
-                    num_encontrados = self.encontrar_cadenas(tit.lower(), strings_cierre_bops)
-                    if num_encontrados:				# Si encuentra algún cierre en el título, guardar en cierre
-                        tipo_articulo = 'cierre'
-                    else:
-                        num_encontrados = self.encontrar_cadenas(tit.lower(), strings_apertura_bops)
-                        # Si encuentra más de un indicativo de empleo en el título o esa cadena en el texto, guardar en apertura
-                        if num_encontrados > 1 or 'bases de la convocatoria' in texto:
-                            tipo_articulo = 'apertura'
-                        else:
-                            inicio_texto = texto[:int(len(texto)/3)]
-                            num_encontrados = self.encontrar_cadenas(inicio_texto, strings_cierre_bops)
-                            if num_encontrados:					# Si encuentra algún cierre en el primer tercio, guardar en cierre
-                                tipo_articulo = 'cierre'
-                            else:
-                                num_encontrados = self.encontrar_cadenas(texto, strings_apertura_bops) + self.encontrar_cadenas(tit, strings_apertura_bops)
-                                if num_encontrados > 1:			# Si encuentra más de un indicativo de empleo en el texto, guardar en cierre
-                                    tipo_articulo = 'apertura'
-                                else:
-                                    continue					# Si no, saltar el artículo
-
-                # Guardar XML con registro como root.
-                nombre_fichero = tipo + '_' + dia + '_' + str(indice)
-                nombre_xml_fichero = nombre_fichero + '.xml'
-                tree_articulo = ET.ElementTree(item)
-                with open(directorio_base / dia / tipo_articulo / 'xml' / nombre_xml_fichero,'wb') as file:
-                    tree_articulo.write(file)
-
-                # Ubicar el enlace del pdf del artículo.
-                # 	(Si sale entre etiquetas de enlace, quitarlas. Si salen varios, coger el primero únicamente.)
-                urls = {}
-                aux = item.find(root_fc.find('./etiquetas_xml/auxiliares/urlPdf').text).text
-                if aux.startswith('<enlace>'):
-                    aux = aux[8:].split('</enlace>')[0]
-                urls['pdf'] = aux
-
-                # Crear url del html
-                urls['html'] = prefijo_url_html + str(indice) + sufijo_url_html
-
-                # Guardar pdf y html
-                for formato in urls.keys():
-                    nombre_fichero_f = nombre_fichero + '.' + formato
-
+                with self.tracer.start_as_current_span("Guardar XML Sumarizado") as span:
                     try:
-                        with open(directorio_base / dia / tipo_articulo / formato / nombre_fichero_f, 'wb') as file:
-                            file.write(requests.get(urls[formato]).content)
+                        if len(urls_sumarizados) > 1:
+                            nombre_sumario = tipo + '_Sumarizado_' + dia + '_' + str(indice_iter+1) + '.xml'
+                        else:
+                            nombre_sumario = tipo + '_Sumarizado_' + dia + '.xml'
+                        ruta_sumario = directorio_base / dia / nombre_sumario
+                        with open(ruta_sumario, 'wb') as file:
+                            file.write(encoded_information)
+                        self.logger.info(f"XML sumarizado guardado en {ruta_sumario}")
+                        span.set_attribute("file.path", str(ruta_sumario))
+                    except Exception as e:
+                        msg = f"Failed: Write {url_sumarizado} content in {ruta_sumario}."
+                        self.logger.exception(msg)
+                        span.record_exception(e)
+                        span.set_status(trace.status.StatusCode.ERROR)    
+                    
 
+                with self.tracer.start_as_current_span("Leer y parsear el fichero sumarizado") as span:
+                    try:
+                        with open(ruta_sumario, 'rb') as file:
+                            tree = ET.parse(file)
+                            root = tree.getroot()
                     except:
                         msg = (
-                            "\nFailed: Write {path}"
+                            "\nFailed: Open {ruta_sumario}"
                         ).format(
-                            path=str(directorio_base / dia / tipo_articulo / formato / nombre_fichero_f)
+                            ruta_sumario=ruta_sumario
                         )
                         logger.exception(
                             msg
                         )
+                        return
 
-                # Creación del fichero de info e inserción de los datos de que se dispone
-                root_info = ET.Element('root')
-                articulo = ET.Element('articulo')
-                root_info.append(articulo)
-                fuente_datos = ET.SubElement(articulo, 'fuente_datos')
-                fuente_datos.text = tipo
-                fecha_publicacion = ET.SubElement(articulo, 'fecha_publicacion')
-                fecha_publicacion.text = dia[-2:] + '/' + dia[4:6] + '/' + dia[:4]
-                enlace = ET.SubElement(articulo, 'enlace_convocatoria')
-                enlace.text = urls['html']
-
-                # Coger los datos que se van a guardar en info desde el xml, indicados en el fc.
-                etiquetas = []
-                for i in root_fc.find('./etiquetas_xml/a_guardar').iter():
-                    etiquetas.append((i.tag, i.text))
-                etiquetas = etiquetas[1:]
-
-                for et_tag, et_text in etiquetas:
-                    SE = ET.SubElement(articulo, et_tag)
-                    el = item.find(et_text)
-                    if et_tag == 'titulo':
-                        SE.text = el.text.replace('\n',' ') if el is not None else '-'
-                    elif et_tag == 'rango' or et_tag == 'organo_convocante':
-                        if el is None or el.text is None or el.text == '':
-                            SE.text = '-'
-                        elif et_tag == 'rango':
-                            SE.text = el.text.capitalize()
+                with self.tracer.start_as_current_span("Por cada artículo del XML sumarizado, crear un nuevo XML y obtener y guardar PDF y HTML") as span:
+                    for item in root.findall(root_fc.find('./etiquetas_xml_sumario/registro').text):
+                        indice += 1
+                        # Realizar la división en aperturas y cierres. (Preferencia a aperturas en BOA, a cierres en BOPs por haber menos)
+                        tit = item.find(root_fc.find('./etiquetas_xml/auxiliares/titulo').text).text
+                        if tipo == 'BOA':
+                            no_es_de_empleo = False
+                            for cadena in strings_no_empleo:	# Si no es de empleo, no guardar artículo
+                                if cadena in tit.lower():
+                                    no_es_de_empleo = True
+                                    break
+                            if no_es_de_empleo:
+                                continue
+                            es_apertura = False
+                            es_cierre = False
+                            if 'por la que se deja sin efecto' in tit.lower():
+                                tipo_articulo = 'cierre'
+                            else:
+                                for cadena in strings_apertura:
+                                    if cadena in tit.lower():
+                                        es_apertura = True
+                                        break
+                                if es_apertura:			# Guardar en apertura
+                                    tipo_articulo = 'apertura'
+                                else:
+                                    for cadena in strings_cierre:
+                                        if cadena in tit.lower():
+                                            es_cierre = True
+                                            break
+                                    if es_cierre:		# Guardar en cierre
+                                        tipo_articulo = 'cierre'
+                                    else:
+                                        continue		# Saltar el artículo
                         else:
-                            SE.text = el.text.upper()
-                    else:
-                        SE.text = el.text if el is not None else '-'
+                            texto = item.find(root_fc.find('./etiquetas_xml/auxiliares/texto').text).text.lower()
+                            inicio_texto = texto[:int(len(texto)/3)]
+                            if self.encontrar_cadenas(tit.lower(), strings_no_empleo_bops) or self.encontrar_cadenas(inicio_texto.lower(), strings_no_empleo_bops) or \
+                            self.encontrar_cadenas(tit.lower(), strings_no_empleo) or self.encontrar_cadenas(inicio_texto.lower(), strings_no_empleo) > 5:
+                                # Evitar artículos que no sean ofertas de empleo
+                                continue
+                            num_encontrados = self.encontrar_cadenas(tit.lower(), strings_cierre_bops)
+                            if num_encontrados:				# Si encuentra algún cierre en el título, guardar en cierre
+                                tipo_articulo = 'cierre'
+                            else:
+                                num_encontrados = self.encontrar_cadenas(tit.lower(), strings_apertura_bops)
+                                # Si encuentra más de un indicativo de empleo en el título o esa cadena en el texto, guardar en apertura
+                                if num_encontrados > 1 or 'bases de la convocatoria' in texto:
+                                    tipo_articulo = 'apertura'
+                                else:
+                                    inicio_texto = texto[:int(len(texto)/3)]
+                                    num_encontrados = self.encontrar_cadenas(inicio_texto, strings_cierre_bops)
+                                    if num_encontrados:					# Si encuentra algún cierre en el primer tercio, guardar en cierre
+                                        tipo_articulo = 'cierre'
+                                    else:
+                                        num_encontrados = self.encontrar_cadenas(texto, strings_apertura_bops) + self.encontrar_cadenas(tit, strings_apertura_bops)
+                                        if num_encontrados > 1:			# Si encuentra más de un indicativo de empleo en el texto, guardar en cierre
+                                            tipo_articulo = 'apertura'
+                                        else:
+                                            continue					# Si no, saltar el artículo
+                        
+                        with self.tracer.start_as_current_span("Guardar XML con registro como root") as span:
+                            # Guardar XML con registro como root.
+                            nombre_fichero = tipo + '_' + dia + '_' + str(indice)
+                            nombre_xml_fichero = nombre_fichero + '.xml'
+                            tree_articulo = ET.ElementTree(item)
+                            with open(directorio_base / dia / tipo_articulo / 'xml' / nombre_xml_fichero,'wb') as file:
+                                tree_articulo.write(file)
 
-                if 'uri_eli' not in [e[0] for e in etiquetas]:
-                    SE = ET.SubElement(articulo, 'uri_eli')
-                    SE.text = '-'
+                        with self.tracer.start_as_current_span("Ubicar y crear el enlace del pdf del artículo") as span:
+                        # Ubicar el enlace del pdf del artículo.
+                        # 	(Si sale entre etiquetas de enlace, quitarlas. Si salen varios, coger el primero únicamente.)
+                            urls = {}
+                            aux = item.find(root_fc.find('./etiquetas_xml/auxiliares/urlPdf').text).text
+                            if aux.startswith('<enlace>'):
+                                aux = aux[8:].split('</enlace>')[0]
+                            urls['pdf'] = aux
 
-                tree_info = ET.ElementTree(root_info)
+                            # Crear url del html
+                            urls['html'] = prefijo_url_html + str(indice) + sufijo_url_html
 
-                with open(directorio_base / dia / tipo_articulo / 'info' / nombre_xml_fichero,'wb') as file:
-                    tree_info.write(file)
+                        with self.tracer.start_as_current_span("Guardar pdf y html") as span:
+                            # Guardar pdf y html
+                            for formato in urls.keys():
+                                nombre_fichero_f = nombre_fichero + '.' + formato
+
+                                try:
+                                    with open(directorio_base / dia / tipo_articulo / formato / nombre_fichero_f, 'wb') as file:
+                                        file.write(requests.get(urls[formato]).content)
+
+                                except:
+                                    msg = (
+                                        "\nFailed: Write {path}"
+                                    ).format(
+                                        path=str(directorio_base / dia / tipo_articulo / formato / nombre_fichero_f)
+                                    )
+                                    logger.exception(
+                                        msg
+                                    )
+
+                        with self.tracer.start_as_current_span("Crear y rellenar fichero de info") as span:
+                            # Creación del fichero de info e inserción de los datos de que se dispone
+                            root_info = ET.Element('root')
+                            articulo = ET.Element('articulo')
+                            root_info.append(articulo)
+                            fuente_datos = ET.SubElement(articulo, 'fuente_datos')
+                            fuente_datos.text = tipo
+                            fecha_publicacion = ET.SubElement(articulo, 'fecha_publicacion')
+                            fecha_publicacion.text = dia[-2:] + '/' + dia[4:6] + '/' + dia[:4]
+                            enlace = ET.SubElement(articulo, 'enlace_convocatoria')
+                            enlace.text = urls['html']
+
+                        with self.tracer.start_as_current_span("Inserción de datos en xml desde info") as span:
+                            # Coger los datos que se van a guardar en info desde el xml, indicados en el fc.
+                            etiquetas = []
+                            for i in root_fc.find('./etiquetas_xml/a_guardar').iter():
+                                etiquetas.append((i.tag, i.text))
+                            etiquetas = etiquetas[1:]
+
+                            for et_tag, et_text in etiquetas:
+                                SE = ET.SubElement(articulo, et_tag)
+                                el = item.find(et_text)
+                                if et_tag == 'titulo':
+                                    SE.text = el.text.replace('\n',' ') if el is not None else '-'
+                                elif et_tag == 'rango' or et_tag == 'organo_convocante':
+                                    if el is None or el.text is None or el.text == '':
+                                        SE.text = '-'
+                                    elif et_tag == 'rango':
+                                        SE.text = el.text.capitalize()
+                                    else:
+                                        SE.text = el.text.upper()
+                                else:
+                                    SE.text = el.text if el is not None else '-'
+
+                            if 'uri_eli' not in [e[0] for e in etiquetas]:
+                                SE = ET.SubElement(articulo, 'uri_eli')
+                                SE.text = '-'
+
+                            tree_info = ET.ElementTree(root_info)
+
+                        with open(directorio_base / dia / tipo_articulo / 'info' / nombre_xml_fichero,'wb') as file:
+                            tree_info.write(file)
 
     def preparar_urls(self, tipo, root_fc, url_sumarizado, sufijo_url_html):
         with self.tracer.start_as_current_span("Preparar URLs") as span:
